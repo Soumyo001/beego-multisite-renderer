@@ -775,6 +775,32 @@ func TestMultiSiteSSRHTTP(t *testing.T) {
 			},
 			{
 				"alpha.example.com", "/all/usa?page=2",
+				http.StatusOK,
+				"alpha Property", "bravo Property",
+			},
+			{
+				"alpha.example.com", "/all/usa?page=200",
+				http.StatusOK,
+				"alpha Property", "bravo Property",
+			},
+			{
+				"alpha.example.com", "/all/usa?page=0",
+				http.StatusOK,
+				"alpha Property", "bravo Property",
+			},
+			{
+				"alpha.example.com", "/all/usa?page=-5",
+				http.StatusOK,
+				"alpha Property", "bravo Property",
+			},
+			{
+				"alpha.example.com", "/all/canada?page=200",
+				http.StatusOK,
+				"No properties are currently listed",
+				"alpha Property",
+			},
+			{
+				"alpha.example.com", "/all/usa?page=abc",
 				http.StatusNotFound,
 				"Page not found", "alpha Property",
 			},
@@ -814,7 +840,7 @@ func TestMultiSiteSSRHTTP(t *testing.T) {
 			if tc.wantStatus == http.StatusOK {
 				for _, fragment := range []string{
 					`id="country-results"`,
-					"https://" + tc.host + tc.path,
+					"https://" + tc.host + strings.SplitN(tc.path, "?", 2)[0],
 					`data-filter-open="dates"`,
 					`data-filter-open="price"`,
 					`data-filter-open="guests"`,
@@ -853,6 +879,22 @@ func TestMultiSiteSSRHTTP(t *testing.T) {
 						"%s%s: missing server-side pagination",
 						tc.host, tc.path,
 					)
+				}
+
+				// The fixture has one USA property per publisher,
+				// so both pagination directions must be disabled.
+				if strings.HasPrefix(tc.path, "/all/usa") {
+					for _, fragment := range []string{
+						`disabled>Previous</button>`,
+						`disabled>Next</button>`,
+					} {
+						if !strings.Contains(body, fragment) {
+							t.Errorf(
+								"%s%s: missing disabled control %q",
+								tc.host, tc.path, fragment,
+							)
+						}
+					}
 				}
 			}
 		}

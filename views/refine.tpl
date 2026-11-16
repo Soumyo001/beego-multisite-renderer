@@ -231,6 +231,9 @@
                     {{if .PrevURL}}
                     <a class="refine-page-button country-page-link"
                        href="{{.PrevURL}}">Previous</a>
+                    {{else}}
+                    <button type="button" class="refine-page-button"
+                            disabled>Previous</button>
                     {{end}}
 
                     {{range .PageLinks}}
@@ -246,6 +249,9 @@
                     {{if .NextURL}}
                     <a class="refine-page-button country-page-link"
                        href="{{.NextURL}}">Next</a>
+                    {{else}}
+                    <button type="button" class="refine-page-button"
+                            disabled>Next</button>
                     {{end}}
                 </nav>
             </div>

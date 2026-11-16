@@ -63,14 +63,18 @@ func countryPageBounds(total int, raw string) (
 
 	if raw != "" {
 		parsed, err := strconv.Atoi(raw)
-		if err != nil || parsed < 1 {
+		if err != nil {
 			return 0, 0, 0, 0, false
 		}
 		page = parsed
 	}
 
+	// Clamp numeric page requests to the available range.
+	if page < 1 {
+		page = 1
+	}
 	if page > pageCount {
-		return 0, 0, 0, 0, false
+		page = pageCount
 	}
 
 	start = (page - 1) * countryPageSize

@@ -69,20 +69,29 @@ func TestCountryPageBounds(t *testing.T) {
 			page: 1, pageCount: 1, start: 0, end: 0, valid: true,
 		},
 		{
-			name: "page too large", total: 15, raw: "3",
-			valid: false,
+			name: "page beyond last", total: 15, raw: "200",
+			page: 2, pageCount: 2, start: 8, end: 15, valid: true,
 		},
 		{
-			name: "zero page", total: 15, raw: "0",
-			valid: false,
+			name: "page three clamps to two", total: 15, raw: "3",
+			page: 2, pageCount: 2, start: 8, end: 15, valid: true,
+		},
+		{
+			name: "zero page clamps to first", total: 15, raw: "0",
+			page: 1, pageCount: 2, start: 0, end: 8, valid: true,
+		},
+		{
+			name: "negative page clamps to first", total: 15, raw: "-5",
+			page: 1, pageCount: 2, start: 0, end: 8, valid: true,
 		},
 		{
 			name: "invalid page", total: 15, raw: "abc",
 			valid: false,
 		},
 		{
-			name: "empty country second page", total: 0, raw: "2",
-			valid: false,
+			name:  "empty country second page clamps to first",
+			total: 0, raw: "2",
+			page: 1, pageCount: 1, start: 0, end: 0, valid: true,
 		},
 	}
 
