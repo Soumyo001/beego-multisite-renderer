@@ -34,10 +34,7 @@ func main() {
 		}
 	}
 
-	catalog, err := services.NewMultiCatalog(
-		contentRoot,
-		deploymentFiles,
-	)
+	catalog, err := services.NewMultiCatalog(contentRoot, deploymentFiles)
 	if err != nil {
 		log.Fatalf("initialize site catalog: %v", err)
 	}
@@ -67,9 +64,9 @@ func main() {
 		)
 	}
 
-	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL_POOLED"))
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	if databaseURL == "" {
-		databaseURL = strings.TrimSpace(os.Getenv("DATABASE_URL"))
+		databaseURL = strings.TrimSpace(os.Getenv("DATABASE_URL_POOLED"))
 	}
 
 	if err := services.InitPropertyDatabase(databaseURL); err != nil {
