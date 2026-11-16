@@ -51,10 +51,7 @@ func main() {
 	)
 
 	if previewHost != "" || previewSource != "" {
-		if err := catalog.RegisterPreviewAlias(
-			previewSource,
-			previewHost,
-		); err != nil {
+		if err := catalog.RegisterPreviewAlias(previewSource, previewHost); err != nil {
 			log.Fatalf(
 				"register preview hostname: %v",
 				err,

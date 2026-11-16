@@ -137,10 +137,7 @@ func (s *DatabasePropertySearchService) Search(
 
 	for _, row := range rows {
 		if row.Location == nil {
-			return nil, fmt.Errorf(
-				"property %s has no related location",
-				row.PropertyID,
-			)
+			return nil, fmt.Errorf("property %s has no related location", row.PropertyID)
 		}
 
 		var amenities []string
