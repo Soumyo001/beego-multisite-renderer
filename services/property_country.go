@@ -12,10 +12,10 @@ import (
 func (s *DatabasePropertySearchService) SearchCountry(
 	siteDirectory, country string,
 ) ([]models.Property, error) {
-	if strings.TrimSpace(siteDirectory) == "" {
+	if siteDirectory = strings.TrimSpace(siteDirectory); siteDirectory == "" {
 		return nil, fmt.Errorf("site directory must not be empty")
 	}
-	if strings.TrimSpace(country) == "" {
+	if country = strings.TrimSpace(country); country == "" {
 		return nil, fmt.Errorf("country must not be empty")
 	}
 
