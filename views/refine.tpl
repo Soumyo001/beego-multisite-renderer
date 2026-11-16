@@ -20,7 +20,19 @@
 
 
     <main id="{{if .IsCountry}}country-results{{else}}refine-app{{end}}"
-          class="refine-app"{{if .IsCountry}} data-country="{{.Country}}"{{end}}>
+          class="refine-app"{{if .IsCountry}}
+          data-country="{{.Country}}"
+          data-price-low="{{.FilterPriceLow}}"
+          data-price-high="{{.FilterPriceHigh}}"
+          data-price-currency="{{.FilterCurrency}}"{{end}}>
+        {{if .IsCountry}}
+        <div id="country-filter-amenities" hidden>
+            {{range .FilterAmenities}}
+            <span data-amenity="{{.}}"></span>
+            {{end}}
+        </div>
+        {{end}}
+
         <div class="refine-inner">
             {{if .IsCountry}}
             <p class="refine-breadcrumb">
@@ -43,6 +55,34 @@
             {{end}}
 
             <div class="refine-toolbar">
+                {{if .IsCountry}}
+                <div class="refine-filters" role="group" aria-label="Search filters">
+                    <div class="refine-filter-chip" data-filter-chip="dates">
+                        <button type="button" class="refine-filter-pill"
+                                data-filter-open="dates">Dates</button>
+                    </div>
+
+                    <div class="refine-filter-chip" data-filter-chip="price">
+                        <button type="button" class="refine-filter-pill"
+                                data-filter-open="price">Price</button>
+                    </div>
+
+                    <div class="refine-filter-chip" data-filter-chip="guests">
+                        <button type="button" class="refine-filter-pill"
+                                data-filter-open="guests">Guests</button>
+                    </div>
+
+                    <div class="refine-filter-chip" data-filter-chip="more">
+                        <button type="button" class="refine-filter-pill"
+                                data-filter-open="more">More</button>
+                        <span id="refine-more-count"
+                              class="refine-filter-count"
+                              aria-hidden="true"
+                              hidden></span>
+                    </div>
+                </div>
+
+                {{else}}
                 <div class="refine-filters" role="group" aria-label="Property filters">
                     <div class="refine-filter-chip" data-filter-chip="dates">
                         <button type="button" class="refine-filter-pill"
@@ -88,9 +128,14 @@
                         <option value="price_high">Price: High to Low</option>
                     </select>
                 </label>
+                {{end}}
             </div>
 
-            <p id="refine-status" class="refine-status" role="status" aria-live="polite">Loading properties...</p>
+            {{if not .IsCountry}}
+            <p id="refine-status" class="refine-status" role="status" aria-live="polite">
+                Loading properties...
+            </p>
+            {{end}}
 
             <section id="refine-grid"
                      class="refine-grid"
@@ -173,6 +218,39 @@
                 {{end}}
             </section>
 
+            {{if .IsCountry}}
+            {{if gt .Total 0}}
+            <div id="refine-pagination-wrap" class="refine-pagination-wrap">
+                <p id="refine-page-summary" class="refine-page-summary">
+                    Showing {{.PageStart}}–{{.PageEnd}} of {{.Total}} properties
+                </p>
+
+                <nav id="refine-pagination" class="refine-pagination"
+                     aria-label="Country listing pages">
+
+                    {{if .PrevURL}}
+                    <a class="refine-page-button country-page-link"
+                       href="{{.PrevURL}}">Previous</a>
+                    {{end}}
+
+                    {{range .PageLinks}}
+                        {{if .Current}}
+                        <span class="refine-page-button is-current"
+                              aria-current="page">{{.Number}}</span>
+                        {{else}}
+                        <a class="refine-page-button country-page-link"
+                           href="{{.URL}}">{{.Number}}</a>
+                        {{end}}
+                    {{end}}
+
+                    {{if .NextURL}}
+                    <a class="refine-page-button country-page-link"
+                       href="{{.NextURL}}">Next</a>
+                    {{end}}
+                </nav>
+            </div>
+            {{end}}
+            {{else}}
             <div id="refine-pagination-wrap"
                  class="refine-pagination-wrap"
                  hidden>
@@ -183,6 +261,7 @@
                      class="refine-pagination"
                      aria-label="Property result pages"></nav>
             </div>
+            {{end}}
 
             <p class="refine-disclaimer">
                 Sample prices, guest capacities, photographs and availability are

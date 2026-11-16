@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 
 	"sparrow-ssr/services"
@@ -38,6 +40,47 @@ type countryCard struct {
 	Rating     float64
 	Reviews    int
 	Eco        bool
+}
+
+const countryPageSize = 8
+
+type countryPageLink struct {
+	Number  int
+	URL     string
+	Current bool
+}
+
+// Calculate a server-rendered page of country listings.
+func countryPageBounds(total int, raw string) (
+	page, pageCount, start, end int, ok bool,
+) {
+	pageCount = (total + countryPageSize - 1) / countryPageSize
+	if pageCount == 0 {
+		pageCount = 1
+	}
+
+	page = 1
+
+	if raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 {
+			return 0, 0, 0, 0, false
+		}
+		page = parsed
+	}
+
+	if page > pageCount {
+		return 0, 0, 0, 0, false
+	}
+
+	start = (page - 1) * countryPageSize
+	end = start + countryPageSize
+
+	if end > total {
+		end = total
+	}
+
+	return page, pageCount, start, end, true
 }
 
 var countrySlugPattern = regexp.MustCompile(
@@ -159,6 +202,73 @@ func (c *CountryController) Get() {
 		return
 	}
 
+	// Build filter metadata from all country properties,
+	// before slicing the server-rendered page of eight.
+	filterLow, filterHigh := 0, 0
+	priceSeen := false
+	filterCurrency := "USD"
+
+	currencies := make(map[string]struct{})
+	amenitySet := make(map[string]struct{})
+
+	for _, property := range properties {
+		if property.PriceFrom > 0 {
+			if !priceSeen || property.PriceFrom < filterLow {
+				filterLow = property.PriceFrom
+			}
+
+			if property.PriceFrom > filterHigh {
+				filterHigh = property.PriceFrom
+			}
+
+			priceSeen = true
+
+			if property.Currency != "" {
+				currencies[property.Currency] = struct{}{}
+			}
+		}
+
+		for _, amenity := range property.Amenities {
+			if name := strings.TrimSpace(amenity); name != "" {
+				amenitySet[name] = struct{}{}
+			}
+		}
+	}
+
+	if !priceSeen {
+		filterLow, filterHigh = 0, 100
+	} else if filterHigh <= filterLow {
+		filterHigh = filterLow + 1
+	}
+
+	if len(currencies) == 1 {
+		for currency := range currencies {
+			filterCurrency = currency
+		}
+	}
+
+	filterAmenities := make([]string, 0, len(amenitySet))
+	for amenity := range amenitySet {
+		filterAmenities = append(filterAmenities, amenity)
+	}
+
+	sort.Strings(filterAmenities)
+
+	total := len(properties)
+
+	page, pageCount, start, end, ok := countryPageBounds(
+		total,
+		c.Ctx.Request.URL.Query().Get("page"),
+	)
+
+	if !ok {
+		c.writeCountryError(
+			http.StatusNotFound,
+			"Page not found",
+		)
+		return
+	}
+
 	content, err := dependencies.loader.Load(location)
 	if err != nil {
 		log.Printf(
@@ -171,9 +281,9 @@ func (c *CountryController) Get() {
 		return
 	}
 
-	cards := make([]countryCard, 0, len(properties))
+	cards := make([]countryCard, 0, end-start)
 
-	for _, p := range properties {
+	for _, p := range properties[start:end] {
 		detailParts := make([]string, 0, len(p.Amenities)+1)
 
 		if p.SizeSqFt > 0 {
@@ -227,8 +337,47 @@ func (c *CountryController) Get() {
 	c.Data["SiteName"] = content.Header.SiteName
 	c.Data["Country"] = country
 	c.Data["IsCountry"] = true
-	c.Data["Total"] = len(cards)
+
+	c.Data["FilterPriceLow"] = filterLow
+	c.Data["FilterPriceHigh"] = filterHigh
+	c.Data["FilterCurrency"] = filterCurrency
+	c.Data["FilterAmenities"] = filterAmenities
+
+	c.Data["Total"] = total
 	c.Data["Cards"] = cards
+	c.Data["Page"] = page
+	c.Data["PageCount"] = pageCount
+
+	if total > 0 {
+		c.Data["PageStart"] = start + 1
+		c.Data["PageEnd"] = end
+	}
+
+	pageLinks := make([]countryPageLink, 0, pageCount)
+
+	for n := 1; n <= pageCount; n++ {
+		path := "/all/" + slug
+
+		if n > 1 {
+			path += "?page=" + strconv.Itoa(n)
+		}
+
+		pageLinks = append(pageLinks, countryPageLink{
+			Number:  n,
+			URL:     path,
+			Current: n == page,
+		})
+	}
+
+	c.Data["PageLinks"] = pageLinks
+
+	if page > 1 {
+		c.Data["PrevURL"] = pageLinks[page-2].URL
+	}
+
+	if page < pageCount {
+		c.Data["NextURL"] = pageLinks[page].URL
+	}
 
 	c.Data["CanonicalURL"] =
 		"https://" + location.Domain + "/all/" + slug

@@ -44,3 +44,76 @@ func TestSafeBooking(t *testing.T) {
 		}
 	}
 }
+
+func TestCountryPageBounds(t *testing.T) {
+	cases := []struct {
+		name      string
+		total     int
+		raw       string
+		page      int
+		pageCount int
+		start     int
+		end       int
+		valid     bool
+	}{
+		{
+			name: "first of fifteen", total: 15, raw: "",
+			page: 1, pageCount: 2, start: 0, end: 8, valid: true,
+		},
+		{
+			name: "second of fifteen", total: 15, raw: "2",
+			page: 2, pageCount: 2, start: 8, end: 15, valid: true,
+		},
+		{
+			name: "empty country", total: 0, raw: "",
+			page: 1, pageCount: 1, start: 0, end: 0, valid: true,
+		},
+		{
+			name: "page too large", total: 15, raw: "3",
+			valid: false,
+		},
+		{
+			name: "zero page", total: 15, raw: "0",
+			valid: false,
+		},
+		{
+			name: "invalid page", total: 15, raw: "abc",
+			valid: false,
+		},
+		{
+			name: "empty country second page", total: 0, raw: "2",
+			valid: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			page, count, start, end, ok := countryPageBounds(
+				tc.total, tc.raw,
+			)
+
+			if ok != tc.valid {
+				t.Fatalf(
+					"valid = %v, want %v",
+					ok, tc.valid,
+				)
+			}
+
+			if !tc.valid {
+				return
+			}
+
+			if page != tc.page ||
+				count != tc.pageCount ||
+				start != tc.start ||
+				end != tc.end {
+				t.Fatalf(
+					"got page=%d count=%d start=%d end=%d; "+
+						"want page=%d count=%d start=%d end=%d",
+					page, count, start, end,
+					tc.page, tc.pageCount, tc.start, tc.end,
+				)
+			}
+		})
+	}
+}

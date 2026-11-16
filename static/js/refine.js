@@ -14,7 +14,8 @@
 
     const ui = {
         heading: $("refine-heading-destination"), breadcrumb: $("refine-breadcrumb-destination"),
-        grid: $("refine-grid"), status: $("refine-status"), sort: $("refine-sort"),
+        grid: $("refine-grid"), status: $("refine-status"),
+        sort: $("refine-sort"),
         paginationWrap: $("refine-pagination-wrap"),
         pagination: $("refine-pagination"),
         pageSummary: $("refine-page-summary"),
@@ -57,7 +58,16 @@
 
     function parseURL() {
         const params = new URLSearchParams(location.search);
-    
+
+        const requestedSort = params.get("sort") || "popular";
+
+        if (ui.sort) {
+            ui.sort.value = ["popular", "price_low", "price_high"]
+                .includes(requestedSort)
+                ? requestedSort
+                : "popular";
+        }
+
         state.search = isCountry
             ? country
             : (params.get("search") || "").trim();
@@ -69,6 +79,25 @@
     
         state.dateStart = params.get("dateStart") || "";
         state.dateEnd = params.get("dateEnd") || "";
+
+        const parsePrice = value =>
+            value !== null &&
+            value.trim() !== "" &&
+            Number.isSafeInteger(Number(value)) &&
+            Number(value) >= 0
+                ? Number(value)
+                : null;
+
+        state.priceMin = parsePrice(params.get("priceMin"));
+        state.priceMax = parsePrice(params.get("priceMax"));
+
+        state.eco = params.get("eco") === "1";
+
+        state.amenities = new Set(
+            params.getAll("amenity")
+                .filter(value => value.length > 0 && value.length <= 128)
+                .slice(0, 100)
+        );
     
         if (!isCountry) {
             const name = state.search || "your destination";
@@ -79,32 +108,48 @@
         updatePills();
     }
 
-    function updateURL() {
+    // Build the same search URL from either page.
+    function buildRefineURL() {
         const params = new URLSearchParams({
+            search: state.search,
             pax: String(state.pax),
             order: "1"
         });
-
-        if (!isCountry) {
-            params.set("search", state.search);
-        }
 
         if (state.dateStart && state.dateEnd) {
             params.set("dateStart", state.dateStart);
             params.set("dateEnd", state.dateEnd);
         }
 
-        const path = isCountry
-            ? window.location.pathname
-            : "/refine";
+        if (ui.sort && ui.sort.value !== "popular") {
+            params.set("sort", ui.sort.value);
+        }
 
-        history.pushState(
-            {},
-            "",
-            `${path}?${params.toString()}`
-        );
+        if (state.priceMin !== null) {
+            params.set("priceMin", String(state.priceMin));
+        }
+
+        if (state.priceMax !== null) {
+            params.set("priceMax", String(state.priceMax));
+        }
+
+        if (state.eco) {
+            params.set("eco", "1");
+        }
+
+        for (const amenity of [...state.amenities].sort()) {
+            params.append("amenity", amenity);
+        }
+
+        return `/refine?${params.toString()}`;
     }
 
+    // Only the refine page modifies its URL in place.
+    function updateURL() {
+        if (!isCountry) {
+            history.pushState({}, "", buildRefineURL());
+        }
+    }
     function updatePills() {
         const moreCount = (state.eco ? 1 : 0) + state.amenities.size;
 
@@ -170,6 +215,16 @@
             : `${p.currency || ""} ${amount.toLocaleString("en-US")}`.trim();
     }
     function priceBounds() {
+        if (isCountry) {
+            const low = Number(app.dataset.priceLow) || 0;
+            const high = Number(app.dataset.priceHigh) || 100;
+
+            return {
+                low,
+                high: Math.max(low + 1, high),
+                currency: app.dataset.priceCurrency || "USD"
+            };
+        }
         const values = state.properties.map(priceAmount).filter(n => n > 0);
         const low = values.length ? Math.floor(Math.min(...values)) : 0;
         const high = values.length ? Math.ceil(Math.max(...values)) : 100;
@@ -515,6 +570,11 @@
         refreshPriceFields();
     }
     function availableAmenities() {
+        if (isCountry) {
+            return [...document.querySelectorAll(
+                "#country-filter-amenities [data-amenity]"
+            )].map(element => element.dataset.amenity);
+        }
         return [...new Set(state.properties.flatMap(p => Array.isArray(p.amenities) ? p.amenities : []))]
             .filter(Boolean).sort((a,b) => a.localeCompare(b));
     }
@@ -550,6 +610,7 @@
         ui.filter.showModal();
         if (focus === "guests") ui.guestNumber.focus();
         else if (focus === "price") ui.priceMax.focus();
+        else if (focus === "dates") ui.modalDates.focus();
         else ui.filterClose.focus();
     }
     function applyDraft() {
@@ -563,8 +624,17 @@
             priceMin: draft.priceMin, priceMax: draft.priceMax, eco: draft.eco, amenities: new Set(draft.amenities) });
         ui.filter.close();
 
+        // Country SSR: submit the chosen filters by navigation.
+        // Do not fetch or alter the server-rendered property grid.
+        if (isCountry) {
+            window.location.assign(buildRefineURL());
+            return;
+        }
+
+        // Refine CSR: preserve existing filtering behavior.
+        updateURL();
+
         if (mustFetch) {
-            updateURL();
             load();
         } else {
             state.currentPage = 1;
@@ -642,8 +712,11 @@
     document.querySelectorAll("[data-filter-open]").forEach(button => {
         button.addEventListener("click", () => {
             const type = button.dataset.filterOpen;
-            if (type === "dates") openCalendar(false);
-            else openFilters(type);
+            if (type === "dates" && !isCountry) {
+                openCalendar(false);
+            } else {
+                openFilters(type);
+            }
         });
     });
 
@@ -686,6 +759,7 @@
                 load();
             } else {
                 state.currentPage = 1;
+                updateURL();
                 render();
             }
 
@@ -716,11 +790,19 @@
     ui.calendarClear.addEventListener("click", () => { chosenStart=""; chosenEnd=""; paintCalendar(); });
     ui.calendarApply.addEventListener("click", acceptDates);
     ui.messageClose.addEventListener("click", () => ui.message.close());
-    ui.sort.addEventListener("change", () => {
-        state.currentPage = 1;
-        render();
+    if (ui.sort) {
+        ui.sort.addEventListener("change", () => {
+            state.currentPage = 1;
+            updateURL();
+            render();
+        });
+    }
+    window.addEventListener("popstate", () => {
+        if (!isCountry) {
+            parseURL();
+            load();
+        }
     });
-    window.addEventListener("popstate", () => { parseURL(); load(); });
 
     function alignWithPublisherHeader() {
         const navigation = document.getElementById("main-navigation");
@@ -751,6 +833,10 @@
 
     alignWithPublisherHeader();
     parseURL();
-    load();
+
+    // Country routes retain their Go-rendered property cards.
+    if (!isCountry) {
+        load();
+    }
 })();
 

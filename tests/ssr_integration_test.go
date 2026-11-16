@@ -710,6 +710,7 @@ func TestMultiSiteSSRHTTP(t *testing.T) {
 			required := []string{
 				`id="refine-app"`,
 				`id="refine-grid"`,
+				`id="refine-sort"`,
 				`/static/css/refine.css`,
 				`/static/js/refine.js`,
 				`/static/css/property_search_popup.css`,
@@ -773,6 +774,11 @@ func TestMultiSiteSSRHTTP(t *testing.T) {
 				"alpha Property",
 			},
 			{
+				"alpha.example.com", "/all/usa?page=2",
+				http.StatusNotFound,
+				"Page not found", "alpha Property",
+			},
+			{
 				"unknown.example.com", "/all/usa",
 				http.StatusNotFound,
 				"Site not found", "alpha Property",
@@ -806,24 +812,45 @@ func TestMultiSiteSSRHTTP(t *testing.T) {
 			}
 
 			if tc.wantStatus == http.StatusOK {
-				if !strings.Contains(
-					body, `id="country-results"`,
-				) ||
-					!strings.Contains(
-						body,
-						"https://"+tc.host+tc.path,
-					) ||
-					!strings.Contains(
-						body, `/static/js/refine.js`,
-					) ||
-					!strings.Contains(
-						body, `id="refine-pagination"`,
-					) ||
-					!strings.Contains(
-						body, `data-filter-open="dates"`,
-					) {
+				for _, fragment := range []string{
+					`id="country-results"`,
+					"https://" + tc.host + tc.path,
+					`data-filter-open="dates"`,
+					`data-filter-open="price"`,
+					`data-filter-open="guests"`,
+					`data-filter-open="more"`,
+					`id="refine-filter-dialog"`,
+					`id="refine-filter-search"`,
+					`/static/js/refine.js`,
+				} {
+					if !strings.Contains(body, fragment) {
+						t.Errorf(
+							"%s%s: missing %q",
+							tc.host, tc.path, fragment,
+						)
+					}
+				}
+
+				for _, forbidden := range []string{
+					`filter=dates`,
+					`filter=price`,
+					`filter=guests`,
+					`filter=more`,
+					`id="country-sort"`,
+					`id="refine-sort"`,
+				} {
+					if strings.Contains(body, forbidden) {
+						t.Errorf(
+							"%s%s: obsolete navigation parameter %q",
+							tc.host, tc.path, forbidden,
+						)
+					}
+				}
+
+				if strings.Contains(tc.path, "/all/usa") &&
+					!strings.Contains(body, `id="refine-pagination"`) {
 					t.Errorf(
-						"%s%s: expected SSR country page with shared filters",
+						"%s%s: missing server-side pagination",
 						tc.host, tc.path,
 					)
 				}

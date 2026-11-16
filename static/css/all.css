@@ -37,3 +37,56 @@ body.country-route .country-unavailable {
     color: #42616b;
     font-size: 12px;
 }
+
+/* Country navigation uses hyperlinks and an ordinary GET form. */
+body.country-route .country-sort-form {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+body.country-route .country-sort-form select {
+    min-height: 36px;
+    width: 176px;
+    padding: 5px 13px;
+    border: 2px solid #073e45;
+    border-radius: 23px;
+    background: transparent;
+    color: #092c33;
+    font: 400 13px Arial, sans-serif;
+}
+
+body.country-route .country-sort-submit {
+    min-height: 35px;
+    padding: 7px 13px;
+    border: 0;
+    border-radius: 6px;
+    background: #073e45;
+    color: #fff;
+    cursor: pointer;
+}
+
+body.country-route .country-page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+body.country-route .refine-page-button.is-current {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+body.country-route .country-page-link:hover {
+    border-color: #ff790b;
+}
+
+body.country-route .country-page-link:focus-visible,
+body.country-route .country-sort-submit:focus-visible,
+body.country-route .country-sort-form select:focus-visible {
+    outline: 3px solid #3687ab;
+    outline-offset: 2px;
+}
