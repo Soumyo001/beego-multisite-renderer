@@ -141,8 +141,109 @@ body.refine-route .refine-app h1 {
     pointer-events: none;
 }
 
-.refine-sort-label { display: flex; align-items: center; gap: 10px; color: #052e34; font-size: 13px; font-weight: 700; white-space: nowrap; }
-.refine-sort-label select { min-height: 36px; width: 176px; padding: 5px 13px; background: transparent; color: #092c33; border: 2px solid #073e45; border-radius: 23px; font: 400 13px Arial, sans-serif; cursor: pointer; }
+.refine-sort-label {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #052e34;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.refine-sort-label select {
+    min-height: 36px;
+    width: 176px;
+    padding: 5px 42px 5px 13px;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    color: #092c33;
+    border: 2px solid #073e45;
+    border-radius: 23px;
+    font: 400 13px Arial, sans-serif;
+    cursor: pointer;
+}
+
+/* Sort dropdown chevron with smooth open/close rotation. */
+.refine-sort-label::after {
+    content: "";
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid #073e45;
+    border-bottom: 2px solid #073e45;
+
+    /* Default: arrow points downward. */
+    transform: translateY(-70%) rotate(45deg);
+    transform-origin: center;
+
+    /* Animate rotation in both directions. */
+    transition: transform 220ms ease-in-out;
+
+    pointer-events: none;
+}
+
+/* Rotate upward only while the native dropdown is open. */
+.refine-sort-label:has(select:open)::after {
+    transform: translateY(-70%) rotate(225deg);
+}
+
+/* Respect reduced-motion accessibility preferences. */
+@media (prefers-reduced-motion: reduce) {
+    .refine-sort-label::after {
+        transition: none;
+    }
+}
+
+/*
+ * UI-L2: Make the sort picker participate in normal
+ * browser rendering so its arrow animation responds
+ * reliably when the picker opens and closes.
+ */
+
+@supports (appearance: base-select) {
+    .refine-sort-label select,
+    .refine-sort-label select::picker(select) {
+        appearance: base-select;
+    }
+
+    /* Center the selected text vertically and horizontally. */
+    .refine-sort-label select {
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Keep our existing custom chevron, not a second arrow. */
+    .refine-sort-label select::picker-icon {
+        display: none;
+    }
+
+    /* Style the dropdown options to match the existing UI. */
+    .refine-sort-label select::picker(select) {
+        margin-top: 5px;
+        padding: 4px;
+        border: 1px solid #c4d8dc;
+        border-radius: 12px;
+        background: #fff;
+        color: #092c33;
+        box-shadow: 0 10px 25px rgba(0, 30, 42, .14);
+    }
+
+    .refine-sort-label select option {
+        padding: 10px 12px;
+        border-radius: 7px;
+        cursor: pointer;
+    }
+
+    .refine-sort-label select option:checked {
+        background: #defafd;
+        font-weight: 600;
+    }
+}
 .refine-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .refine-status.is-visible { position: static; width: auto; height: auto; clip-path: none; white-space: normal; margin: 0 0 12px; font-size: 13px; color: #31585e; }
 .refine-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 17px; align-items: stretch; }
