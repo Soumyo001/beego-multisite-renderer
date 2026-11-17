@@ -1,6 +1,10 @@
 package main
 
-import "sparrow-ssr/models"
+import (
+	"fmt"
+	"sparrow-ssr/models"
+	"strings"
+)
 
 // seedProperties is self-contained initial data. It does not read any JSON files.
 // Prices, maximum guests, ratings, and availability are illustrative assessment data.
@@ -170,4 +174,166 @@ var seedProperties = []seedProperty{
 		Images:        []string{"https://images.unsplash.com/photo-1580587771525-78b9dba3b914"},
 		AvailableFrom: "2026-11-15",
 	},
+}
+
+// galleryExtraPhotoIDs stores four additional illustrative images
+// for each seeded property.
+//
+// The original first image is preserved.
+// These photographs are illustrative, not authenticated images
+// of the named hotels.
+var galleryExtraPhotoIDs = map[string][]string{
+	"prop-001": {
+		"photo-1631049307264-da0ec9d70304",
+		"photo-1573052905904-34ad8c27f0cc",
+		"photo-1590381105924-c72589b9ef3f",
+		"photo-1600210492486-724fe5c67fb0",
+	},
+	"prop-002": {
+		"photo-1507876466758-bc54f384809c",
+		"photo-1509934053274-6ef492293340",
+		"photo-1623055576799-e0644e49887a",
+		"photo-1562122583-eacb4151baa3",
+	},
+	"prop-003": {
+		"photo-1582719508461-905c673771fd",
+		"photo-1611892440504-42a792e24d32",
+		"photo-1542314831-068cd1dbfeeb",
+		"photo-1599696848652-f0ff23bc911f",
+	},
+	"prop-004": {
+		"photo-1561501900-3701fa6a0864",
+		"photo-1656115883666-1a8c605de3bd",
+		"photo-1696735648220-498fc4ee1655",
+		"photo-1675302197721-9f36d27a406a",
+	},
+	"prop-005": {
+		"photo-1540541338287-41700207dee6",
+		"photo-1551882547-ff40c63fe5fa",
+		"photo-1520250497591-112f2f40a3f4",
+		"photo-1549294413-26f195200c16",
+	},
+	"prop-006": {
+		"photo-1589817559780-02ce2a79a5be",
+		"photo-1682922212654-cb6a7e158ce5",
+		"photo-1638396243368-efd7781ded5b",
+		"photo-1673138660624-d76ebf4410f9",
+	},
+	"prop-007": {
+		"photo-1629140727571-9b5c6f6267b4",
+		"photo-1621293954908-907159247fc8",
+		"photo-1578683010236-d716f9a3f461",
+		"photo-1560448204-e02f11c3d0e2",
+	},
+	"prop-008": {
+		"photo-1755716963484-129960b33ca7",
+		"photo-1540202404-a2f29016b523",
+		"photo-1507525428034-b723cf961d3e",
+		"photo-1510414842594-a61c69b5ae57",
+	},
+	"prop-009": {
+		"photo-1610641818989-c2051b5e2cfd",
+		"photo-1551918120-9739cb430c6d",
+		"photo-1623718649591-311775a30c43",
+		"photo-1586611292717-f828b167408c",
+	},
+	"prop-010": {
+		"photo-1611048267451-e6ed903d4a38",
+		"photo-1568495248636-6432b97bd949",
+		"photo-1631049552057-403cdb8f0658",
+		"photo-1590490360182-c33d57733427",
+	},
+	"prop-011": {
+		"photo-1514282401047-d79a71a590e8",
+		"photo-1525498128493-380d1990a112",
+		"photo-1501785888041-af3ef285b470",
+		"photo-1505693416388-ac5ce068fe85",
+	},
+	"prop-012": {
+		"photo-1582719478250-c89cae4dc85b",
+		"photo-1566665797739-1674de7a421a",
+		"photo-1512918728675-ed5a9ecdebfd",
+		"photo-1576354302919-96748cb8299e",
+	},
+	"prop-013": {
+		"photo-1711059985570-4c32ed12a12c",
+		"photo-1562438668-bcf0ca6578f0",
+		"photo-1546967900-1bea5f16b69d",
+		"photo-1584132967334-10e028bd69f7",
+	},
+	"prop-014": {
+		"photo-1509934053274-6ef492293340",
+		"photo-1540541338287-41700207dee6",
+		"photo-1582719478250-c89cae4dc85b",
+		"photo-1600607687920-4e2a09cf159d",
+	},
+	"prop-015": {
+		"photo-1582719508461-905c673771fd",
+		"photo-1540202404-a2f29016b523",
+		"photo-1566073771259-6a8506099945",
+		"photo-1600566752355-35792bedcfea",
+	},
+}
+
+// gallerySeedProperties builds the five-image seed dataset
+// without modifying the original seedProperties variable.
+func gallerySeedProperties() ([]seedProperty, error) {
+	if len(galleryExtraPhotoIDs) != len(seedProperties) {
+		return nil, fmt.Errorf(
+			"gallery entry count %d differs from seed count %d",
+			len(galleryExtraPhotoIDs),
+			len(seedProperties),
+		)
+	}
+
+	result := make([]seedProperty, 0, len(seedProperties))
+	visited := make(map[string]bool, len(seedProperties))
+
+	for _, property := range seedProperties {
+		if visited[property.ID] {
+			return nil, fmt.Errorf(
+				"duplicate seed ID %q", property.ID,
+			)
+		}
+		visited[property.ID] = true
+
+		ids, ok := galleryExtraPhotoIDs[property.ID]
+
+		if !ok || len(ids) != 4 ||
+			len(property.Images) != 1 ||
+			strings.TrimSpace(property.Images[0]) == "" {
+			return nil, fmt.Errorf(
+				"%s: expected 1 original and 4 additional images",
+				property.ID,
+			)
+		}
+
+		images := append([]string(nil), property.Images...)
+		seen := make(map[string]bool, 5)
+
+		for _, id := range ids {
+			if !strings.HasPrefix(id, "photo-") ||
+				len(id) <= len("photo-") ||
+				seen[id] ||
+				strings.Contains(property.Images[0], id) {
+				return nil, fmt.Errorf(
+					"%s: invalid or duplicate gallery photo %q",
+					property.ID, id,
+				)
+			}
+
+			seen[id] = true
+
+			images = append(
+				images,
+				"https://images.unsplash.com/"+id+
+					"?auto=format&fit=crop&w=1000&q=75",
+			)
+		}
+
+		property.Images = images
+		result = append(result, property)
+	}
+
+	return result, nil
 }
