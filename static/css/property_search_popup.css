@@ -171,11 +171,22 @@
     box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
 }
 
-/* Keep rounded button corners if the publisher stacks fields. */
-@media (max-width: 650px) {
-    .sparrow-search-ready .property-search-content .destination-wrap,
+/*
+ * Mobile/tablet stacked search bar:
+ * round the outer top and bottom corners.
+ */
+@media (max-width: 1024px) {
+    .sparrow-search-ready .property-search-content .destination-wrap {
+        border-radius: 14px 14px 0 0;
+    }
+
+    .sparrow-search-ready .property-search-content .search-btn-wrap,
     .sparrow-search-ready .property-search-content .search-property-btn {
-        border-radius: 12px;
+        border-radius: 0 0 14px 14px !important;
+    }
+
+    .sparrow-search-ready .property-search-content .search-btn-wrap {
+        overflow: hidden;
     }
 }
 

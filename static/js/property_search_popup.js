@@ -366,10 +366,22 @@
     }, true);
 
     dates.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            dates.click();
+        if ((event.key !== "Enter" && event.key !== " ") ||
+            event.isComposing || event.repeat) {
+            return;
         }
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Enter submits when a complete date range is selected.
+        // Space always allows keyboard users to reopen the calendar.
+        if (event.key === "Enter" && selectedStart && selectedEnd) {
+            submitSearch();
+            return;
+        }
+
+        dates.click();
     });
 
     // Open the existing guest panel.
