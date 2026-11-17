@@ -131,11 +131,12 @@
                 {{end}}
             </div>
 
-            {{if not .IsCountry}}
-            <p id="refine-status" class="refine-status" role="status" aria-live="polite">
-                Loading properties...
-            </p>
-            {{end}}
+            <p id="refine-status" class="refine-status" role="status" aria-live="polite">{{if not .IsCountry}}Loading properties...{{end}}</p>
+
+            <section id="refine-loading-grid"
+                     class="refine-grid refine-loading-grid"
+                     aria-hidden="true"
+                     hidden></section>
 
             <section id="refine-grid"
                      class="refine-grid"

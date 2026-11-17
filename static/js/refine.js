@@ -14,7 +14,8 @@
 
     const ui = {
         heading: $("refine-heading-destination"), breadcrumb: $("refine-breadcrumb-destination"),
-        grid: $("refine-grid"), status: $("refine-status"),
+        grid: $("refine-grid"), loadingGrid: $("refine-loading-grid"),
+        status: $("refine-status"),
         sort: $("refine-sort"),
         paginationWrap: $("refine-pagination-wrap"),
         pagination: $("refine-pagination"),
@@ -48,6 +49,93 @@
     let latestRequest = 0;
     let calendarOrigin = "standalone";
     let chosenStart = "", chosenEnd = "", visibleMonth = new Date();
+
+    // Keep instant client operations visually consistent with real API loading.
+    // This is a presentation-only minimum, not a server-side delay.
+    const MIN_LOADING_MS = 180;
+    let loadingSequence = 0;
+    let fetching = false;
+    let pendingNavigation = null;
+
+    function makeLoadingCards() {
+        if (ui.loadingGrid.childElementCount) return;
+
+        const fragment = document.createDocumentFragment();
+        for (let i = 0; i < PAGE_SIZE; i++) {
+            const card = node("div", "refine-skeleton-card");
+            const image = node("div", "refine-skeleton-media refine-shimmer");
+            const body = node("div", "refine-skeleton-content");
+
+            for (const width of ["70%", "90%", "83%", "42%"]) {
+                const line = node("div", "refine-skeleton-line refine-shimmer");
+                line.style.width = width;
+                body.append(line);
+            }
+
+            card.append(image, body);
+            fragment.append(card);
+        }
+        ui.loadingGrid.replaceChildren(fragment);
+    }
+
+    function showLoading() {
+        makeLoadingCards();
+        const ticket = {
+            id: ++loadingSequence,
+            started: performance.now(),
+            paginationWasHidden: ui.paginationWrap ? ui.paginationWrap.hidden : true
+        };
+        ui.grid.hidden = true;
+        ui.loadingGrid.hidden = false;
+        ui.grid.setAttribute("aria-busy", "true");
+        if (ui.paginationWrap) ui.paginationWrap.hidden = true;
+        ui.status.textContent = "Loading properties...";
+        ui.status.classList.remove("is-visible");
+        return ticket;
+    }
+
+    function finishLoading(ticket) {
+        if (ticket.id !== loadingSequence) return;
+        ui.loadingGrid.hidden = true;
+        ui.grid.hidden = false;
+        ui.grid.removeAttribute("aria-busy");
+        if (isCountry && ui.paginationWrap) {
+            ui.paginationWrap.hidden = ticket.paginationWasHidden;
+        }
+    }
+
+    function waitForLoading(ticket) {
+        const remaining = Math.max(0, MIN_LOADING_MS - (performance.now() - ticket.started));
+        return new Promise(resolve => setTimeout(resolve, remaining));
+    }
+
+    function renderWithLoading(afterRender) {
+        // If the API is still loading, its final render will use the latest UI state.
+        if (fetching) {
+            updatePills();
+            return;
+        }
+        const ticket = showLoading();
+        (async () => {
+            await waitForLoading(ticket);
+            if (ticket.id !== loadingSequence) return;
+            try {
+                render();
+            } finally {
+                finishLoading(ticket);
+            }
+            if (typeof afterRender === "function") afterRender();
+        })();
+    }
+
+    function navigateWithLoading(url) {
+        pendingNavigation = showLoading();
+        const ticket = pendingNavigation;
+        // Allow the browser to paint the skeleton before starting navigation.
+        requestAnimationFrame(() => setTimeout(() => {
+            if (ticket.id === loadingSequence) window.location.assign(url);
+        }, 0));
+    }
 
     function node(tag, className = "", text = undefined) {
         const n = document.createElement(tag);
@@ -344,13 +432,13 @@
             state.currentPage = destination;
 
             // Filter and sort state remain unchanged.
-            render();
-
-            // Return the visitor to the beginning of the new results.
-            ui.grid.focus({ preventScroll: true });
-            ui.grid.scrollIntoView({
-                behavior: "smooth",
-                block: "start"
+            renderWithLoading(() => {
+                // Move focus only after the new cards are visible.
+                ui.grid.focus({ preventScroll: true });
+                ui.grid.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                });
             });
         });
 
@@ -459,28 +547,15 @@
         ui.status.classList.remove("is-visible");
     }
 
-    let countryHydrated = false;
-
+    // Only the CSR route requests property JSON. Country SSR never calls this.
     async function load() {
+        if (isCountry) return;
+
         const request = ++latestRequest;
-        const preserveInitialSSR = isCountry && !countryHydrated;
-
+        const ticket = showLoading();
+        fetching = true;
         state.currentPage = 1;
-        ui.paginationWrap.hidden = true;
-        ui.pagination.replaceChildren();
 
-        ui.status.textContent = "Loading properties...";
-        ui.status.classList.add("is-visible");
-
-        // Keep the initial server-rendered cards visible until
-        // the first successful client-side enhancement.
-        if (!preserveInitialSSR) {
-            ui.grid.replaceChildren();
-        }
-
-        // PostgreSQL Search() applies guest and date conditions.
-        // Its destination search is keyword-based, so we enforce
-        // exact country equality on the returned results below.
         const params = new URLSearchParams({
             search: state.search,
             pax: String(state.pax),
@@ -497,35 +572,34 @@
                 `/api/properties?${params}`,
                 { headers: { Accept: "application/json" } }
             );
-
             const data = await response.json();
-
             if (!response.ok) {
                 throw new Error(data.error || `HTTP ${response.status}`);
             }
-
             if (!Array.isArray(data.properties)) {
                 throw new Error("Unexpected API response");
             }
 
-            if (request !== latestRequest) return;
-
-            state.properties = isCountry
-                ? data.properties.filter(property =>
-                    String(
-                        property.location?.country || ""
-                    ).toLowerCase() === country.toLowerCase()
-                )
-                : data.properties;
-
-            countryHydrated = true;
+            await waitForLoading(ticket);
+            if (request !== latestRequest || ticket.id !== loadingSequence) return;
+            state.properties = data.properties;
             render();
         } catch (err) {
-            if (request !== latestRequest) return;
+            await waitForLoading(ticket);
+            if (request !== latestRequest || ticket.id !== loadingSequence) return;
 
-            ui.status.textContent =
-                `Unable to load properties: ${err.message}`;
+            state.properties = [];
+            ui.paginationWrap.hidden = true;
+            ui.grid.replaceChildren(node(
+                "p", "refine-empty", "Unable to load properties. Please try again."
+            ));
+            ui.status.textContent = `Unable to load properties: ${err.message}`;
             ui.status.classList.add("is-visible");
+        } finally {
+            if (request === latestRequest) {
+                fetching = false;
+                finishLoading(ticket);
+            }
         }
     }
 
@@ -627,7 +701,7 @@
         // Country SSR: submit the chosen filters by navigation.
         // Do not fetch or alter the server-rendered property grid.
         if (isCountry) {
-            window.location.assign(buildRefineURL());
+            navigateWithLoading(buildRefineURL());
             return;
         }
 
@@ -638,7 +712,7 @@
             load();
         } else {
             state.currentPage = 1;
-            render();
+            renderWithLoading();
         }
     }
 
@@ -760,7 +834,7 @@
             } else {
                 state.currentPage = 1;
                 updateURL();
-                render();
+                renderWithLoading();
             }
 
             button.parentElement
@@ -794,9 +868,35 @@
         ui.sort.addEventListener("change", () => {
             state.currentPage = 1;
             updateURL();
-            render();
+            renderWithLoading();
         });
     }
+
+    if (isCountry) {
+        document.querySelectorAll("a.country-page-link").forEach(link => {
+            link.addEventListener("click", event => {
+                // Preserve browser-native modified clicks and new-tab behavior.
+                if (event.defaultPrevented || event.button !== 0 ||
+                    event.ctrlKey || event.metaKey || event.altKey || event.shiftKey ||
+                    link.hasAttribute("download") ||
+                    (link.target && link.target !== "_self") ||
+                    link.origin !== location.origin) return;
+
+                event.preventDefault();
+                navigateWithLoading(link.href);
+            });
+        });
+
+        // Restore the original server HTML when returning from the back-forward cache.
+        window.addEventListener("pageshow", event => {
+            if (event.persisted && pendingNavigation) {
+                finishLoading(pendingNavigation);
+                pendingNavigation = null;
+                ui.status.textContent = "";
+            }
+        });
+    }
+
     window.addEventListener("popstate", () => {
         if (!isCountry) {
             parseURL();
