@@ -408,11 +408,22 @@
     }, true);
 
     guestDisplay.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
+        if ((event.key !== "Enter" && event.key !== " ") ||
+            event.isComposing || event.repeat) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        // Enter submits through the existing search validation.
+        // Space remains available to open the guest picker.
+        if (event.key === "Enter") {
+            submitSearch();
+        } else {
             guestDisplay.click();
         }
-    });
+    }, true);
 
     // Connect the original +/- buttons to the number input.
     for (const [button, amount] of [
@@ -424,6 +435,13 @@
             event.stopImmediatePropagation();
 
             setGuests((guestCount() || 2) + amount);
+
+            // After a pointer selection, focus the guest display
+            // so Enter searches without opening a mobile keyboard.
+            // Keyboard activation retains the +/- button behavior.
+            if (event.detail > 0) {
+                guestDisplay.focus({ preventScroll: true });
+            }
         }, true);
     }
 
@@ -463,6 +481,10 @@
 
         setGuests(value);
         closeGuests();
+
+        // Return focus to the visible guest field.
+        // Enter can now submit the complete search.
+        guestDisplay.focus({ preventScroll: true });
     }, true);
 
     // UI-L2: visual transition before navigating to the existing CSR page.
