@@ -449,6 +449,23 @@
 
     const carousels = new WeakMap();
 
+    function updateCarouselUI(picture, gallery) {
+        picture.querySelectorAll(".refine-carousel-arrow").forEach(button => {
+            const direction = button.dataset.carouselDirection;
+
+            button.hidden = direction === "prev"
+                ? gallery.index === 0
+                : gallery.index === gallery.photos.length - 1;
+        });
+
+        picture.querySelectorAll(".refine-carousel-dot").forEach((dot, index) => {
+            dot.setAttribute(
+                "aria-pressed",
+                String(index === gallery.index)
+            );
+        });
+    }
+
     function initializeCarousel(picture, photos, name) {
         const img = picture.querySelector(".refine-card-image");
 
@@ -483,7 +500,13 @@
             fallback.hidden = false;
         }
 
-        const gallery = { photos, index: 0, name };
+        const gallery = {
+            photos,
+            index: 0,
+            name,
+            busy: false
+        };
+
         carousels.set(picture, gallery);
 
         // A single-photo property needs no navigation controls.
@@ -539,10 +562,11 @@
         });
 
         picture.append(dots);
+        updateCarouselUI(picture, gallery);
     }
 
     // One listener supports SSR, CSR and future appended cards.
-    ui.grid.addEventListener("click", event => {
+    ui.grid.addEventListener("click", async event => {
         const control = event.target instanceof Element
             ? event.target.closest(
                 "button[data-carousel-direction], button[data-carousel-go]"
@@ -554,48 +578,159 @@
         const picture = control.closest(".refine-card-picture");
         const gallery = picture && carousels.get(picture);
 
-        if (!gallery) return;
+        if (!gallery || gallery.busy) return;
 
-        let index = gallery.index;
+        let target = gallery.index;
 
         if (control.hasAttribute("data-carousel-go")) {
-            index = Number(control.dataset.carouselGo);
+            target = Number(control.dataset.carouselGo);
         } else {
-            index += control.dataset.carouselDirection === "next"
+            target += control.dataset.carouselDirection === "next"
                 ? 1
                 : -1;
         }
 
-        index = (index + gallery.photos.length) %
-            gallery.photos.length;
+        // No wraparound: stop at the first and last photos.
+        if (!Number.isInteger(target) ||
+            target < 0 ||
+            target >= gallery.photos.length ||
+            target === gallery.index) {
+            return;
+        }
 
-        if (index === gallery.index) return;
+        gallery.busy = true;
+        picture.setAttribute("aria-busy", "true");
 
-        gallery.index = index;
+        // Create an overlaid three-dot loading indicator.
+        const loader = node("div", "refine-carousel-loader");
+        loader.setAttribute("role", "status");
+        loader.setAttribute("aria-label", "Loading photograph");
 
-        const img = picture.querySelector(".refine-card-image");
-        const fallback = picture.querySelector(
-            ".refine-image-fallback"
-        );
+        for (let i = 0; i < 3; i++) {
+            loader.append(node("span", ""));
+        }
 
-        if (!img) return;
+        loader.hidden = true;
+        picture.append(loader);
 
-        if (fallback) fallback.hidden = true;
-        img.hidden = false;
+        // Avoid flashing the loader for quickly cached photos.
+        const timer = window.setTimeout(() => {
+            if (gallery.busy && picture.isConnected) {
+                loader.hidden = false;
+            }
+        }, 120);
 
-        img.alt =
-            `Illustrative accommodation photograph ${index + 1} ` +
-            `of ${gallery.photos.length} for ${gallery.name}`;
+        let incoming = null;
+        let oldAnimation = null;
+        let newAnimation = null;
 
-        img.src = gallery.photos[index];
+        try {
+            // Load the next photograph without replacing the
+            // currently visible image.
+            incoming = new Image();
+            incoming.className =
+                "refine-card-image refine-carousel-incoming";
 
-        picture.querySelectorAll(".refine-carousel-dot")
-            .forEach((dot, i) => {
-                dot.setAttribute(
-                    "aria-pressed",
-                    String(i === index)
+            incoming.alt =
+                `Illustrative accommodation photograph ${target + 1} ` +
+                `of ${gallery.photos.length} for ${gallery.name}`;
+
+            incoming.decoding = "async";
+            incoming.src = gallery.photos[target];
+
+            // Wait until the new image is fully decoded.
+            await incoming.decode();
+
+            // The card might have been removed by CSR filtering.
+            if (!picture.isConnected) return;
+
+            const outgoing = picture.querySelector(
+                ".refine-card-image"
+            );
+
+            if (!outgoing) return;
+
+            window.clearTimeout(timer);
+            loader.hidden = true;
+
+            const fallback = picture.querySelector(
+                ".refine-image-fallback"
+            );
+
+            if (fallback) fallback.hidden = true;
+
+            // The incoming photograph is placed above the current
+            // one only AFTER it has finished loading.
+            picture.append(incoming);
+
+            const reducedMotion = window.matchMedia(
+                "(prefers-reduced-motion: reduce)"
+            ).matches;
+
+            if (!reducedMotion) {
+                const shift = target > gallery.index ? 100 : -100;
+
+                const options = {
+                    duration: 280,
+                    easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+                    fill: "forwards"
+                };
+
+                oldAnimation = outgoing.animate([
+                    { transform: "translateX(0)" },
+                    { transform: `translateX(${-shift}%)` }
+                ], options);
+
+                newAnimation = incoming.animate([
+                    { transform: `translateX(${shift}%)` },
+                    { transform: "translateX(0)" }
+                ], options);
+
+                await Promise.all([
+                    oldAnimation.finished,
+                    newAnimation.finished
+                ]);
+
+                oldAnimation.cancel();
+                newAnimation.cancel();
+            }
+
+            // The loaded photograph becomes the main image.
+            outgoing.remove();
+            incoming.classList.remove(
+                "refine-carousel-incoming"
+            );
+
+            gallery.index = target;
+            updateCarouselUI(picture, gallery);
+
+        } catch (error) {
+            // If the next photo fails, keep the old one visible.
+            oldAnimation?.cancel();
+            newAnimation?.cancel();
+            incoming?.remove();
+
+            if (picture.isConnected) {
+                const message = node(
+                    "div",
+                    "refine-carousel-error",
+                    "Photo unavailable"
                 );
-            });
+
+                picture.append(message);
+
+                window.setTimeout(() => {
+                    message.remove();
+                }, 1500);
+            }
+
+        } finally {
+            window.clearTimeout(timer);
+            loader.remove();
+
+            gallery.busy = false;
+            picture.removeAttribute("aria-busy");
+        }
     });
 
     // Enhance existing Go-rendered cards.
