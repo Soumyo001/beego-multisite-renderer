@@ -96,9 +96,9 @@ func main() {
 	// Default local development address.
 	address := "127.0.0.1:8080"
 
-	// Render provides PORT as an environment variable.
-	// Bind to all interfaces so Render's proxy can reach
-	// the application.
+	// When PORT is explicitly configured, allow access through
+	// the company-approved local network.
+	// Without PORT, listen on localhost only.
 	if port := strings.TrimSpace(os.Getenv("PORT")); port != "" {
 		configured, err := strconv.Atoi(port)
 		if err != nil {

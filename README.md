@@ -6,7 +6,7 @@ Sparrow SSR is an internship assessment project for **W3 Engineers**. It accepts
 
 The assessment uses **local JSON files arranged in the same relative directory structure as the publisher's S3/CDN object keys**. It does **not** fetch the JSON documents from S3 at request time. External CSS and JavaScript URLs present in the JSON are preserved in the rendered HTML.
 
-> **Implementation scope (11 November 2026):** Sparrow SSR supports deployment-metadata-driven multi-site server-side rendering using publisher-managed JSON, alongside a client-rendered accommodation-search application powered by Neon PostgreSQL, Beego ORM and pgx. The current database seed contains one site, eight reusable locations, fifteen properties and fifteen availability windows. Property prices, guest capacities, photographs and availability are illustrative assessment data, not live booking-provider information. Two-site HTTP routing has been tested with synthetic fixtures; real PostgreSQL search has been verified against the seeded site.
+> **Implementation scope (17 November 2026):** Sparrow SSR uses Go/Beego MVC, publisher deployment JSON, an in-memory Host+path routing catalog, and a concurrent decoded-JSON cache. Property data comes from Neon PostgreSQL through Beego ORM and pgx. The database contains three application tables: `locations`, `properties`, and `property_availability`; publisher isolation uses stable `site_key` values rather than a SQL `sites` table. The `/all/:country` route renders property cards directly into the initial server HTML, with eight properties per page. The `/refine` route uses client-side rendering backed by `/api/properties`. The UI-L1 and UI-L2 interactive loading, search and filter improvements have passed the submitted local verification. Public hosting is prohibited; development is restricted to the company-approved local environment.
 
 
 ## 1. Technology and requirements
@@ -23,7 +23,7 @@ The assessment uses **local JSON files arranged in the same relative directory s
 | Tests and performance tools | Go `testing`, `httptest`, race detector, benchmarks, `pprof` |
 | Property database | Neon PostgreSQL |
 | Database access | Beego ORM with pgx v5 |
-| Property data models | Normalized sites, locations, properties and property_availability |
+| Property data models | locations, properties and property_availability; publisher isolation through site_key |
 | Database utilities | cmd/dbsetup and cmd/dbseed |
 | Client frontend | JavaScript, static/js/refine.js and static/js/property_search_popup.js |
 | Property API | GET /api/properties, backed by PostgreSQL |
@@ -167,7 +167,7 @@ go run .
 bee run
 ```
 
-The latest submitted `main.go` explicitly runs Beego on **`127.0.0.1:8080`**, so the development server listens on the local machine only. By default, it loads `conf/deployment.json` and serves four indexed pages.
+By default, `main.go` listens on `127.0.0.1:8080`. When a valid `PORT` is configured, it listens on `0.0.0.0:<PORT>` for company-approved LAN development. It loads `conf/deployment.json` by default and registers the publisher routes discovered from that metadata.
 
 Because routing requires the published hostname, make requests with a matching `Host` header:
 
@@ -192,13 +192,17 @@ SPARROW_DEPLOYMENTS='conf/deployment.json,conf/second-deployment.json' go run .
 
 The application uses `godotenv.Load()` to load an optional `.env` file. Existing process environment variables take precedence over values in that file.
 
-The web application prefers `DATABASE_URL_POOLED` when it is nonempty, otherwise it uses `DATABASE_URL`. This is selection based on whether the variable is present, not automatic connection-failure recovery.
+The web application uses `DATABASE_URL` when it is nonempty. Otherwise, it uses `DATABASE_URL_POOLED`. This is environment-variable selection, not automatic connection-failure recovery.
 
 The database setup command currently uses `DATABASE_URL`. The seed command prefers `DATABASE_URL_DIRECT`, falling back to `DATABASE_URL`. Database setup and seeding should use direct PostgreSQL connections.
 
 The `.env` file must not be committed to version control. PostgreSQL credentials are required to run the application, while ordinary unit and HTTP tests do not require Neon. The Neon integration tests are explicitly enabled using `SPARROW_TEST_NEON=1`.
 
-The application defaults to `127.0.0.1:8080`. `PORT` changes the listening port without enabling public access. `SPARROW_BIND_HOST` can explicitly select a loopback or private-network IP. Private-LAN testing requires company authorization. Public hosting of this company assessment is prohibited.
+The application defaults to `127.0.0.1:8080` when `PORT` is unset.
+
+When a valid `PORT` is configured, the application listens on `0.0.0.0:<PORT>`, making it reachable through available network interfaces, subject to firewall and network restrictions.
+
+This configuration is approved for development within the company's controlled local network. Public deployment of this company assessment is prohibited.
 
 ## 5. Concurrent content loading and caching
 
@@ -342,7 +346,7 @@ This run measured **306,784 ns/op**, **150,711 B/op**, **266 allocs/op**, and **
 - **Input and trust boundaries:** lexical relative-path validation is present but is not a full symlink-containment policy. Publisher-supplied HTML is rendered as trusted; do not feed untrusted visitor HTML into those fields.
 - **Asset status:** some local `/static/img/...` URLs returned 404 and certain external image URLs returned 403 during browser testing. Root cause for external 403 has not been established. These are intentionally deferred; CSS/JS CDN links remain unchanged.
 - **Benchmark scope:** loopback HTTP benchmarks are not browser page-load or production traffic measurements. End-to-end network/CDN timings, peak load tests, and latency percentiles have not been measured.
-- **Hosting:** the latest submitted `main.go` binds to `127.0.0.1:8080` for local development. Public deployment configuration and reverse-proxy behavior are not covered here.
+- **Hosting and access:** the instructor prohibits public hosting of this company assessment. The previous Render service was removed as reported by the user. Development uses localhost by default or the instructor-approved company LAN when `PORT` is configured. LAN access must remain protected by the company's network controls.
 
 Future optimizations should start with **measured requirements**, then isolated tests that preserve the same HTML and multi-site routing behavior. Profiling indicates template/output-buffer allocation paths are logical candidates for an experiment, not an automatic rewrite.
 
@@ -354,4 +358,4 @@ Future optimizations should start with **measured requirements**, then isolated 
 
 ---
 
-**Project status (11 November 2026):** The original SSR architecture, multi-site routing, JSON content caching, performance benchmarks and HTTP tests remain implemented. DB-1 database schema, DB-2 seeding, DB-3A PostgreSQL search, DB-3B.1 HTTP API cutover and DB-3B.2 dynamic database updates have been verified using submitted tests and runtime evidence. DB-3B.3 has removed the legacy property JSON dependencies and passed the submitted Go tests, race checks and Neon integration tests. Final browser smoke-test verification is ongoing. The reference filter UI redesign, client-side pagination and Render deployment remain deferred. The publisher SSR JSON and external asset references are intentionally preserved.
+**Project status (17 November 2026):** The deployment-metadata-driven SSR architecture, Host+path routing, concurrent decoded-JSON cache, and three-table Neon PostgreSQL integration remain implemented. The RD-4 country SSR → refine CSR architecture was verified through submitted local tests, server-rendered HTML checks and browser evidence. Country pages render eight properties per page directly on the server without fetching Sparrow's property API. The `/refine` page uses the PostgreSQL-backed property API for client-side results. UI-L1 and UI-L2 have completed user-reported browser verification, including interactive loading skeletons, filter controls, homepage Search, keyboard submission, responsive styling and sort-dropdown interactions. The former public Render deployment has been removed as reported by the user, and company-approved local/LAN development is now required. MP-1A remains verified, MP-1B is paused and unimplemented, and MP-1C is outside the active scope.
