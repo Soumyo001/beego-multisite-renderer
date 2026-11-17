@@ -39,7 +39,7 @@ func main() {
 		log.Fatalf("initialize site catalog: %v", err)
 	}
 
-	// An optional, explicitly registered preview hostname for render
+	// Optional explicit preview hostname for local publisher testing.
 	previewHost := strings.TrimSpace(
 		os.Getenv("SPARROW_PREVIEW_HOST"),
 	)
