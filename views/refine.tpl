@@ -152,11 +152,18 @@
                 {{range .Cards}}
                 <article class="refine-card">
                     <div class="refine-card-picture">
-                        {{if .Photo}}
+                        {{if .Photos}}
                         <img class="refine-card-image"
-                             src="{{.Photo}}"
+                             src="{{index .Photos 0}}"
                              loading="lazy"
-                             alt="Illustrative accommodation photograph for {{.Name}}">
+                             decoding="async"
+                             alt="Illustrative accommodation photograph 1 of {{len .Photos}} for {{.Name}}">
+
+                        <div class="refine-carousel-sources" hidden>
+                            {{range .Photos}}
+                            <span data-photo-url="{{.}}"></span>
+                            {{end}}
+                        </div>
                         {{else}}
                         <div class="refine-image-fallback">
                             Photo unavailable

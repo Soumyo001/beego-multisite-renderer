@@ -422,14 +422,207 @@
         const currency = currencies.size === 1 ? [...currencies][0] : "USD";
         return { low, high: Math.max(low + 1, high), currency };
     }
-    function imageURL(property) {
-        const raw = Array.isArray(property.images) ? property.images[0] : "";
-        if (typeof raw !== "string" || !raw) return "";
-        try {
-            const url = new URL(raw);
-            return url.protocol === "https:" || url.protocol === "http:" ? url.href : "";
-        } catch { return ""; }
+
+    function imageURLs(images) {
+        if (!Array.isArray(images)) return [];
+
+        const result = [];
+
+        for (const raw of images) {
+            if (result.length === 5) break;
+            if (typeof raw !== "string" || !raw) continue;
+
+            try {
+                const url = new URL(raw);
+
+                if ((url.protocol === "https:" || url.protocol === "http:") &&
+                    !url.username && !url.password) {
+                    result.push(url.href);
+                }
+            } catch {
+                // Skip invalid image URLs.
+            }
+        }
+
+        return result;
     }
+
+    const carousels = new WeakMap();
+
+    function initializeCarousel(picture, photos, name) {
+        const img = picture.querySelector(".refine-card-image");
+
+        if (!img || photos.length === 0 || carousels.has(picture)) {
+            return;
+        }
+
+        let fallback = picture.querySelector(".refine-image-fallback");
+
+        if (!fallback) {
+            fallback = node(
+                "div",
+                "refine-image-fallback",
+                "Photo unavailable"
+            );
+            fallback.hidden = true;
+            picture.prepend(fallback);
+        }
+
+        img.addEventListener("error", () => {
+            img.hidden = true;
+            fallback.hidden = false;
+        });
+
+        img.addEventListener("load", () => {
+            img.hidden = false;
+            fallback.hidden = true;
+        });
+
+        if (img.complete && img.naturalWidth === 0) {
+            img.hidden = true;
+            fallback.hidden = false;
+        }
+
+        const gallery = { photos, index: 0, name };
+        carousels.set(picture, gallery);
+
+        // A single-photo property needs no navigation controls.
+        if (photos.length < 2) return;
+
+        for (const [direction, path] of [
+            ["prev", "M15 18l-6-6 6-6"],
+            ["next", "M9 18l6-6-6-6"]
+        ]) {
+            const button = node(
+                "button",
+                `refine-carousel-arrow refine-carousel-${direction}`
+            );
+
+            button.type = "button";
+            button.dataset.carouselDirection = direction;
+
+            button.setAttribute(
+                "aria-label",
+                `${direction === "prev" ? "Previous" : "Next"} photo of ${name}`
+            );
+
+            // Static SVG path; no API-provided HTML is inserted.
+            button.innerHTML =
+                `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">` +
+                `<path d="${path}"/></svg>`;
+
+            picture.append(button);
+        }
+
+        const dots = node("div", "refine-carousel-dots");
+
+        dots.setAttribute("role", "group");
+        dots.setAttribute("aria-label", `Photos of ${name}`);
+
+        photos.forEach((_, index) => {
+            const dot = node("button", "refine-carousel-dot");
+
+            dot.type = "button";
+            dot.dataset.carouselGo = String(index);
+
+            dot.setAttribute(
+                "aria-label",
+                `Show photo ${index + 1} of ${photos.length} for ${name}`
+            );
+
+            dot.setAttribute(
+                "aria-pressed",
+                String(index === 0)
+            );
+
+            dots.append(dot);
+        });
+
+        picture.append(dots);
+    }
+
+    // One listener supports SSR, CSR and future appended cards.
+    ui.grid.addEventListener("click", event => {
+        const control = event.target instanceof Element
+            ? event.target.closest(
+                "button[data-carousel-direction], button[data-carousel-go]"
+            )
+            : null;
+
+        if (!control || !ui.grid.contains(control)) return;
+
+        const picture = control.closest(".refine-card-picture");
+        const gallery = picture && carousels.get(picture);
+
+        if (!gallery) return;
+
+        let index = gallery.index;
+
+        if (control.hasAttribute("data-carousel-go")) {
+            index = Number(control.dataset.carouselGo);
+        } else {
+            index += control.dataset.carouselDirection === "next"
+                ? 1
+                : -1;
+        }
+
+        index = (index + gallery.photos.length) %
+            gallery.photos.length;
+
+        if (index === gallery.index) return;
+
+        gallery.index = index;
+
+        const img = picture.querySelector(".refine-card-image");
+        const fallback = picture.querySelector(
+            ".refine-image-fallback"
+        );
+
+        if (!img) return;
+
+        if (fallback) fallback.hidden = true;
+        img.hidden = false;
+
+        img.alt =
+            `Illustrative accommodation photograph ${index + 1} ` +
+            `of ${gallery.photos.length} for ${gallery.name}`;
+
+        img.src = gallery.photos[index];
+
+        picture.querySelectorAll(".refine-carousel-dot")
+            .forEach((dot, i) => {
+                dot.setAttribute(
+                    "aria-pressed",
+                    String(i === index)
+                );
+            });
+    });
+
+    // Enhance existing Go-rendered cards.
+    // Can also be reused when SSR batches are appended later.
+    function initializeSSRCarousels(root) {
+        root.querySelectorAll(".refine-carousel-sources")
+            .forEach(sources => {
+                const picture = sources.closest(
+                    ".refine-card-picture"
+                );
+
+                if (!picture) return;
+
+                const images = imageURLs(
+                    [...sources.querySelectorAll("[data-photo-url]")]
+                        .map(element => element.dataset.photoUrl)
+                );
+
+                const title = picture.closest(".refine-card")
+                    ?.querySelector(".refine-card-title")
+                    ?.textContent?.trim() || "property";
+
+                initializeCarousel(picture, images, title);
+                sources.remove();
+            });
+    }
+
     function bookingURL(property) {
         const raw = property.booking_url;
         if (typeof raw !== "string" || !raw.trim()) return "";
@@ -453,16 +646,32 @@
     function propertyCard(property) {
         const card = node("article", "refine-card");
         const picture = node("div", "refine-card-picture");
-        const fallback = node("div", "refine-image-fallback", "Photo unavailable");
-        const photoURL = imageURL(property);
-        if (photoURL) {
+
+        const photos = imageURLs(property.images);
+
+        if (photos.length) {
             const img = node("img", "refine-card-image");
-            img.src = photoURL;
-            img.alt = `Illustrative accommodation photograph for ${property.name}`;
+
+            img.src = photos[0];
+            img.alt =
+                `Illustrative accommodation photograph 1 of ` +
+                `${photos.length} for ${property.name}`;
+
             img.loading = "lazy";
-            img.addEventListener("error", () => { img.remove(); picture.prepend(fallback); }, { once: true });
+            img.decoding = "async";
+
             picture.append(img);
-        } else picture.append(fallback);
+
+            initializeCarousel(picture, photos, property.name);
+        } else {
+            picture.append(
+                node(
+                    "div",
+                    "refine-image-fallback",
+                    "Photo unavailable"
+                )
+            );
+        }
 
         picture.append(node("span", "refine-price", priceLabel(property) ? `From ${priceLabel(property)}` : "Check provider for price"));
         if (property.eco_friendly) picture.append(node("span", "refine-eco", "Eco"));
@@ -1030,7 +1239,9 @@
     alignWithPublisherHeader();
     parseURL();
 
-    // Restore saved favorites on server-rendered cards.
+    // Enhance server-rendered photos and restore favorites.
+    initializeSSRCarousels(ui.grid);
+
     ui.grid.querySelectorAll("button.refine-favorite")
         .forEach(syncFavoriteButton);
 

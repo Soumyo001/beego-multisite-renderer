@@ -32,7 +32,7 @@ type countryCard struct {
 	ID         string
 	Name       string
 	Type       string
-	Photo      string
+	Photos     []string
 	Price      string
 	Location   string
 	Amenities  string
@@ -125,6 +125,24 @@ func safePhoto(images []string) string {
 	}
 
 	return u.String()
+}
+
+// safeGalleryPhotos retains at most five permitted image URLs.
+// The first valid image remains the initially rendered SSR photo.
+func safeGalleryPhotos(images []string) []string {
+	photos := make([]string, 0, 5)
+
+	for _, raw := range images {
+		if len(photos) == 5 {
+			break
+		}
+
+		if safe := safePhoto([]string{raw}); safe != "" {
+			photos = append(photos, safe)
+		}
+	}
+
+	return photos
 }
 
 // Match the provider restrictions from static/js/refine.js.
@@ -308,11 +326,11 @@ func (c *CountryController) Get() {
 		}
 
 		cards = append(cards, countryCard{
-			ID:    p.ID,
-			Name:  p.Name,
-			Type:  p.PropertyType,
-			Photo: safePhoto(p.Images),
-			Price: price,
+			ID:     p.ID,
+			Name:   p.Name,
+			Type:   p.PropertyType,
+			Photos: safeGalleryPhotos(p.Images),
+			Price:  price,
 			Location: strings.Join(
 				nonempty(
 					p.Location.City,

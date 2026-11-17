@@ -592,3 +592,119 @@ body.refine-route dialog.refine-message-dialog::backdrop { background: rgba(0,0,
         animation: none;
     }
 }
+
+
+/* UI-L6B: shared SSR/CSR property photo carousel. */
+
+.refine-card-image[hidden],
+.refine-image-fallback[hidden] {
+    display: none !important;
+}
+
+.refine-carousel-sources[hidden] {
+    display: none !important;
+}
+
+/* Navigation arrows over the property photo. */
+.refine-carousel-arrow {
+    position: absolute;
+    z-index: 3;
+    top: 50%;
+
+    display: grid;
+    place-items: center;
+
+    width: 30px;
+    height: 30px;
+    padding: 0;
+
+    border: 1px solid rgba(255,255,255,.75);
+    border-radius: 50%;
+
+    background: rgba(8,39,49,.58);
+    color: #fff;
+
+    cursor: pointer;
+    transform: translateY(-50%);
+
+    transition: background-color 150ms ease;
+}
+
+.refine-carousel-prev {
+    left: 9px;
+}
+
+.refine-carousel-next {
+    right: 9px;
+}
+
+.refine-carousel-arrow svg {
+    width: 19px;
+    height: 19px;
+
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.refine-carousel-arrow:hover {
+    background: rgba(8,39,49,.82);
+}
+
+/* Five navigation dots centered near the image bottom. */
+.refine-carousel-dots {
+    position: absolute;
+    z-index: 3;
+    bottom: 12px;
+    left: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+
+    transform: translateX(-50%);
+}
+
+.refine-carousel-dot {
+    flex: 0 0 auto;
+
+    width: 7px;
+    height: 7px;
+    padding: 0;
+
+    border: 0;
+    border-radius: 50%;
+
+    background: rgba(255,255,255,.6);
+    box-shadow: 0 1px 3px rgba(0,0,0,.35);
+
+    cursor: pointer;
+
+    transition:
+        width 150ms ease,
+        height 150ms ease,
+        background-color 150ms ease;
+}
+
+.refine-carousel-dot[aria-pressed="true"] {
+    width: 11px;
+    height: 11px;
+    background: #fff;
+}
+
+/* Keyboard accessibility. */
+.refine-carousel-arrow:focus-visible,
+.refine-carousel-dot:focus-visible {
+    outline: 3px solid #ff790b;
+    outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .refine-carousel-arrow,
+    .refine-carousel-dot {
+        transition: none;
+    }
+}
