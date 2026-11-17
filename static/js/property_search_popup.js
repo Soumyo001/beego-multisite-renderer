@@ -586,6 +586,25 @@
         submitSearch();
     }, true);
 
+    // Enter in an editable search field uses the same
+    // validation and loading flow as the Search button.
+    //
+    // The readonly date and guest display fields retain
+    // their existing Enter-key behavior for opening pickers.
+    for (const input of [destination, guestNumber]) {
+        input.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" ||
+                event.isComposing || event.repeat) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            submitSearch();
+        });
+    }
+
     // Close pickers when clicking elsewhere.
     document.addEventListener("click", (event) => {
         if (!dateWrap.contains(event.target)) {

@@ -13,7 +13,9 @@
     const PAGE_SIZE = 8;
 
     const ui = {
-        heading: $("refine-heading-destination"), breadcrumb: $("refine-breadcrumb-destination"),
+        heading: $("refine-heading-destination"),
+        breadcrumb: $("refine-breadcrumb-destination"),
+        subtitle: $("refine-subtitle-destination"),
         grid: $("refine-grid"), loadingGrid: $("refine-loading-grid"),
         status: $("refine-status"),
         sort: $("refine-sort"),
@@ -187,11 +189,18 @@
                 .filter(value => value.length > 0 && value.length <= 128)
                 .slice(0, 100)
         );
-    
+        
         if (!isCountry) {
-            const name = state.search || "your destination";
+            const search = state.search;
+            const name = !search
+                ? "your destination"
+                : search.toLowerCase() === "usa"
+                    ? "USA"
+                    : search.charAt(0).toUpperCase() + search.slice(1);
+
             ui.heading.textContent = name;
             ui.breadcrumb.textContent = name;
+            ui.subtitle.textContent = name;
         }
     
         updatePills();

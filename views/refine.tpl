@@ -51,7 +51,11 @@
                 Find a Place to Stay in
                 <span id="refine-heading-destination">your destination</span>
             </h1>
-            <p class="refine-subtitle">Plan Your Perfect Getaway to</p>
+            
+            <p class="refine-subtitle">
+                Plan Your Perfect Getaway to
+                <span id="refine-subtitle-destination">your destination</span>
+            </p>
             {{end}}
 
             <div class="refine-toolbar">
