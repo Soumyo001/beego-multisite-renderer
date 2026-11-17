@@ -252,8 +252,57 @@ body.refine-route .refine-app h1 {
 .refine-card-image { display: block; width: 100%; height: 100%; object-fit: cover; }
 .refine-image-fallback { display: grid; place-items: center; width: 100%; height: 100%; color: #537175; font-size: 13px; }
 .refine-price { position: absolute; bottom: 6px; left: 7px; padding: 3px 5px; background: #fff; border-radius: 2px; color: #082f37; font: 700 12px Arial, sans-serif; }
-.refine-favorite { position: absolute; top: 10px; right: 10px; width: 29px; height: 29px; border: 1.5px solid rgba(255,255,255,.9); border-radius: 50%; background: rgba(34,56,65,.48); color: white; font: 24px/1 Arial, sans-serif; cursor: pointer; }
-.refine-favorite[aria-pressed="true"] { color: #ffd9da; }
+
+/* Shared SVG favorite button for SSR and CSR property cards. */
+.refine-favorite {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1.5px solid rgba(255,255,255,.9);
+    border-radius: 50%;
+    background: rgba(34,56,65,.48);
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 160ms ease;
+}
+
+.refine-favorite svg {
+    display: block;
+    width: 21px;
+    height: 21px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: fill 160ms ease, stroke 160ms ease;
+}
+
+.refine-favorite:hover {
+    background: rgba(34,56,65,.75);
+}
+
+.refine-favorite[aria-pressed="true"] svg {
+    fill: #ff790b;
+    stroke: #ff790b;
+}
+
+.refine-favorite:focus-visible {
+    outline: 3px solid #ff790b;
+    outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .refine-favorite,
+    .refine-favorite svg {
+        transition: none;
+    }
+}
 .refine-eco { position: absolute; top: 10px; right: 48px; border-radius: 100px; background: #eaf7e9; color: #21723c; padding: 4px 7px; font-size: 11px; }
 .refine-card-body { display: flex; flex: 1; flex-direction: column; gap: 3px; padding: 8px 12px 10px; color: #092f35; font: 12px/1.35 Arial, Helvetica, sans-serif; }
 .refine-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; }

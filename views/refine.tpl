@@ -20,7 +20,8 @@
 
 
     <main id="{{if .IsCountry}}country-results{{else}}refine-app{{end}}"
-          class="refine-app"{{if .IsCountry}}
+          class="refine-app"
+          data-site-key="{{.SiteKey}}"{{if .IsCountry}}
           data-country="{{.Country}}"
           data-price-low="{{.FilterPriceLow}}"
           data-price-high="{{.FilterPriceHigh}}"
@@ -167,6 +168,20 @@
                         {{if .Eco}}
                         <span class="refine-eco">Eco</span>
                         {{end}}
+
+                        <button
+                            type="button"
+                            class="refine-favorite"
+                            data-property-id="{{.ID}}"
+                            data-property-name="{{.Name}}"
+                            aria-label="Add {{.Name}} to favorites"
+                            aria-pressed="false">
+                            <svg viewBox="0 0 24 24"
+                                 aria-hidden="true"
+                                 focusable="false">
+                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                            </svg>
+                        </button>
                     </div>
 
                     <div class="refine-card-body">

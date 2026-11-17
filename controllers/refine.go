@@ -56,6 +56,7 @@ func (c *RefineController) Get() {
 
 	c.Data["Language"] = language
 	c.Data["SiteName"] = content.Header.SiteName
+	c.Data["SiteKey"] = location.ContentDirectory
 
 	// This virtual application route is available
 	// only for a registered hostname.

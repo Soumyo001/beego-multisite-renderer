@@ -10,7 +10,33 @@
     const isCountry = country.length > 0;
 
     const $ = id => document.getElementById(id);
+
     const PAGE_SIZE = 8;
+    const FAVORITES_KEY =
+        `sparrow:favorites:v1:${app.dataset.siteKey || location.host}`;
+
+    const HEART_SVG =
+        `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">` +
+        `<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>` +
+        `</svg>`;
+
+    function readFavorites() {
+        try {
+            const parsed = JSON.parse(
+                localStorage.getItem(FAVORITES_KEY) || "[]"
+            );
+
+            if (!Array.isArray(parsed)) return new Set();
+
+            return new Set(parsed.filter(id =>
+                typeof id === "string" &&
+                id.length > 0 &&
+                id.length <= 100
+            ));
+        } catch {
+            return new Set();
+        }
+    }
 
     const ui = {
         heading: $("refine-heading-destination"),
@@ -45,8 +71,74 @@
         search: "", pax: 2, dateStart: "", dateEnd: "",
         properties: [], currentPage: 1,
         priceMin: null, priceMax: null, eco: false, amenities: new Set(),
-        favorites: new Set()
+        favorites: readFavorites()
     };
+
+    function syncFavoriteButton(button) {
+        const id = button.dataset.propertyId;
+        const selected = state.favorites.has(id);
+        const name = button.dataset.propertyName || "property";
+
+        button.setAttribute("aria-pressed", String(selected));
+
+        button.setAttribute(
+            "aria-label",
+            selected
+                ? `Remove ${name} from favorites`
+                : `Add ${name} to favorites`
+        );
+    }
+
+    function makeFavoriteButton(id, name) {
+        const button = node("button", "refine-favorite");
+
+        button.type = "button";
+        button.dataset.propertyId = String(id);
+        button.dataset.propertyName = String(name);
+
+        // Static icon markup, not HTML from the API.
+        button.innerHTML = HEART_SVG;
+
+        syncFavoriteButton(button);
+
+        return button;
+    }
+
+    // Event delegation supports both existing SSR cards
+    // and CSR cards added later through infinite scrolling.
+    ui.grid.addEventListener("click", event => {
+        const button = event.target instanceof Element
+            ? event.target.closest("button.refine-favorite")
+            : null;
+
+        if (!button || !ui.grid.contains(button)) return;
+
+        const id = button.dataset.propertyId;
+        if (!id) return;
+
+        if (state.favorites.has(id)) {
+            state.favorites.delete(id);
+        } else {
+            state.favorites.add(id);
+        }
+
+        ui.grid.querySelectorAll("button.refine-favorite")
+            .forEach(candidate => {
+                if (candidate.dataset.propertyId === id) {
+                    syncFavoriteButton(candidate);
+                }
+            });
+
+        try {
+            localStorage.setItem(
+                FAVORITES_KEY,
+                JSON.stringify([...state.favorites])
+            );
+        } catch {
+            // Storage is optional; in-memory favorites still work.
+        }
+    });
+
     let draft = null;
     let latestRequest = 0;
     let calendarOrigin = "standalone";
@@ -374,17 +466,9 @@
 
         picture.append(node("span", "refine-price", priceLabel(property) ? `From ${priceLabel(property)}` : "Check provider for price"));
         if (property.eco_friendly) picture.append(node("span", "refine-eco", "Eco"));
-        const fav = node("button", "refine-favorite", state.favorites.has(property.id) ? "♥" : "♡");
-        fav.type = "button";
-        fav.setAttribute("aria-label", `Favorite ${property.name}`);
-        fav.setAttribute("aria-pressed", String(state.favorites.has(property.id)));
-        fav.addEventListener("click", () => {
-            if (state.favorites.has(property.id)) state.favorites.delete(property.id);
-            else state.favorites.add(property.id);
-            fav.textContent = state.favorites.has(property.id) ? "♥" : "♡";
-            fav.setAttribute("aria-pressed", String(state.favorites.has(property.id)));
-        });
-        picture.append(fav);
+        picture.append(
+            makeFavoriteButton(property.id, property.name)
+        );
 
         const body = node("div", "refine-card-body");
         const meta = node("div", "refine-card-meta");
@@ -942,8 +1026,13 @@
 
     window.addEventListener("resize", alignWithPublisherHeader);
 
+
     alignWithPublisherHeader();
     parseURL();
+
+    // Restore saved favorites on server-rendered cards.
+    ui.grid.querySelectorAll("button.refine-favorite")
+        .forEach(syncFavoriteButton);
 
     // Country routes retain their Go-rendered property cards.
     if (!isCountry) {

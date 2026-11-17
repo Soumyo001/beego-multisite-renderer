@@ -29,6 +29,7 @@ type CountryController struct {
 }
 
 type countryCard struct {
+	ID         string
 	Name       string
 	Type       string
 	Photo      string
@@ -307,6 +308,7 @@ func (c *CountryController) Get() {
 		}
 
 		cards = append(cards, countryCard{
+			ID:    p.ID,
 			Name:  p.Name,
 			Type:  p.PropertyType,
 			Photo: safePhoto(p.Images),
@@ -339,6 +341,7 @@ func (c *CountryController) Get() {
 
 	c.Data["Language"] = language
 	c.Data["SiteName"] = content.Header.SiteName
+	c.Data["SiteKey"] = location.ContentDirectory
 	c.Data["Country"] = country
 	c.Data["IsCountry"] = true
 
