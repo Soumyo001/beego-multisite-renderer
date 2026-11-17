@@ -453,6 +453,84 @@
         closeGuests();
     }, true);
 
+    // UI-L2: visual transition before navigating to the existing CSR page.
+    let searchNavigationPending = false;
+    let searchLoadingOverlay = null;
+
+    function navigateWithSearchLoading(search, targetURL) {
+        if (searchNavigationPending) return;
+        searchNavigationPending = true;
+        searchButton.disabled = true;
+        searchButton.setAttribute("aria-busy", "true");
+
+        const overlay = document.createElement("section");
+        overlay.className = "sparrow-search-transition";
+        overlay.setAttribute("aria-label", "Loading search results");
+
+        const inner = document.createElement("div");
+        inner.className = "sparrow-search-transition-inner";
+        inner.innerHTML = `
+            <p class="sparrow-search-transition-status" role="status">
+                Preparing your search...
+            </p>
+            <h2 class="sparrow-search-transition-heading"></h2>
+            <div class="sparrow-search-transition-grid" aria-hidden="true"></div>
+        `;
+        inner.querySelector(".sparrow-search-transition-heading").textContent =
+            `Finding a Place to Stay in ${search}`;
+
+        const skeletonCard = `
+            <div class="sparrow-search-transition-card">
+                <div class="sparrow-search-transition-photo sparrow-search-transition-shimmer"></div>
+                <div class="sparrow-search-transition-details">
+                    <div class="sparrow-search-transition-line sparrow-search-transition-shimmer" style="width:70%"></div>
+                    <div class="sparrow-search-transition-line sparrow-search-transition-shimmer" style="width:90%"></div>
+                    <div class="sparrow-search-transition-line sparrow-search-transition-shimmer" style="width:83%"></div>
+                    <div class="sparrow-search-transition-line sparrow-search-transition-shimmer" style="width:42%"></div>
+                </div>
+            </div>
+        `;
+        inner.querySelector(".sparrow-search-transition-grid").innerHTML =
+            skeletonCard.repeat(8);
+        overlay.append(inner);
+
+        // Preserve the publisher header and its centered content width.
+        const nav = document.getElementById("main-navigation");
+        if (nav) {
+            const rect = nav.getBoundingClientRect();
+            if (rect.width > 0 && rect.bottom > 0) {
+                overlay.style.top = `${Math.max(0, rect.bottom)}px`;
+                inner.style.width = `${rect.width}px`;
+                inner.style.maxWidth = "none";
+                inner.style.marginLeft = `${rect.left}px`;
+                inner.style.marginRight = "0";
+                inner.style.paddingInline = "0";
+            }
+        }
+
+        document.body.append(overlay);
+        searchLoadingOverlay = overlay;
+
+        // Permit a paint; the brief minimum is visual feedback, not server time.
+        if (document.visibilityState === "hidden") {
+            window.location.assign(targetURL);
+        } else {
+            requestAnimationFrame(() => {
+                window.setTimeout(() => window.location.assign(targetURL), 180);
+            });
+        }
+    }
+
+    // Restore the old page if a visitor returns via the back-forward cache.
+    window.addEventListener("pageshow", event => {
+        if (!event.persisted || !searchNavigationPending) return;
+        searchLoadingOverlay?.remove();
+        searchLoadingOverlay = null;
+        searchNavigationPending = false;
+        searchButton.disabled = false;
+        searchButton.removeAttribute("aria-busy");
+    });
+
     // Convert selections into the exact URL format
     // expected by the existing /refine page.
     function submitSearch() {
@@ -495,7 +573,8 @@
         }
 
         // Relative URL: preserve the current host and port.
-        window.location.assign(
+        navigateWithSearchLoading(
+            search,
             `/refine?${params.toString()}`
         );
     }
