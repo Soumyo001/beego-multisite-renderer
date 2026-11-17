@@ -64,20 +64,29 @@
     line-height: 1.4;
 }
 
-/*
- * Keep focus styling INSIDE the search fields.
- * The previous outline extended over adjacent
- * controls and outside the mobile search form.
- */
-.sparrow-search-ready .property-search-content input:focus,
-.sparrow-search-ready .property-search-content button:focus {
+/* No visible focus border on the three main search fields. */
+.sparrow-search-ready #location_search:focus,
+.sparrow-search-ready #date_picker:focus,
+.sparrow-search-ready #guest_picker:focus,
+.sparrow-search-ready #location_search:focus-visible,
+.sparrow-search-ready #date_picker:focus-visible,
+.sparrow-search-ready #guest_picker:focus-visible {
     outline: none !important;
     box-shadow: none !important;
+    border-color: transparent !important;
 }
 
-.sparrow-search-ready .property-search-content input:focus-visible,
+/* Mouse clicks should not create a button focus ring. */
+.sparrow-search-ready .property-search-content button:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+/* Preserve a visible indicator for keyboard navigation. */
 .sparrow-search-ready .property-search-content button:focus-visible {
-    box-shadow: inset 0 0 0 2px #bda85e !important;
+    outline: 2px solid #83c2d1 !important;
+    outline-offset: -3px;
+    box-shadow: none !important;
 }
 
 .sparrow-search-ready .search-property-btn {
@@ -86,6 +95,95 @@
 
 .sparrow-search-ready .search-property-btn:hover {
     filter: brightness(1.08);
+}
+
+
+/*
+ * UI-L2 visual refinement:
+ * Enhance the publisher's existing search bar.
+ * Keep its original layout, dimensions and functionality.
+ */
+
+/* A soft elevated surface for the complete search bar. */
+.sparrow-search-ready .property-search-content {
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow:
+        0 14px 36px rgba(0, 20, 35, .18),
+        0 2px 6px rgba(0, 20, 35, .07);
+    overflow: visible !important;
+}
+
+/* Gentle interaction feedback on individual field areas. */
+.sparrow-search-ready .property-search-content .search-input-wrap {
+    min-width: 0;
+    transition: background-color 160ms ease;
+}
+
+.sparrow-search-ready .property-search-content .search-input-wrap:hover,
+.sparrow-search-ready .property-search-content .search-input-wrap:focus-within {
+    background-color: #f2f7fa;
+}
+
+/* Clean text styling, without individual input borders. */
+.sparrow-search-ready .property-search-content
+:is(#location_search, #date_picker, #guest_picker) {
+    min-width: 0;
+    border: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    color: #173849;
+    font-weight: 500;
+    caret-color: #073f5c;
+}
+
+.sparrow-search-ready .property-search-content
+:is(#location_search, #date_picker, #guest_picker)::placeholder {
+    color: #82949b;
+    opacity: 1;
+}
+
+/* Preserve the original connected-bar silhouette. */
+.sparrow-search-ready .property-search-content .destination-wrap {
+    border-radius: 14px 0 0 14px;
+}
+
+/* More refined search button, using the existing navy palette. */
+.sparrow-search-ready .property-search-content .search-property-btn {
+    border: 0 !important;
+    border-radius: 0 14px 14px 0;
+    background: linear-gradient(
+        135deg,
+        #073f5c 0%,
+        #084f72 100%
+    );
+    color: #ffffff;
+    font-weight: 700;
+    letter-spacing: .02em;
+    transition:
+        filter 160ms ease,
+        box-shadow 160ms ease;
+}
+
+.sparrow-search-ready .property-search-content .search-property-btn:hover {
+    filter: brightness(1.12);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+}
+
+/* Keep rounded button corners if the publisher stacks fields. */
+@media (max-width: 650px) {
+    .sparrow-search-ready .property-search-content .destination-wrap,
+    .sparrow-search-ready .property-search-content .search-property-btn {
+        border-radius: 12px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sparrow-search-ready .property-search-content .search-input-wrap,
+    .sparrow-search-ready .property-search-content .search-property-btn {
+        transition: none;
+    }
 }
 
 /*

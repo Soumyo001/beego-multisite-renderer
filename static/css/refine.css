@@ -53,7 +53,20 @@ body.refine-route .refine-app h1 {
     box-shadow: 0 1px 2px rgba(0,0,0,.06);
     font: 400 13px Arial, Helvetica, sans-serif; color: #172836; cursor: pointer;
 }
-.refine-filter-pill:hover, .refine-filter-pill[aria-pressed="true"] { border-color: #ff790b; }
+
+/* Stronger orange border without changing the pill dimensions. */
+.refine-filter-pill {
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.refine-filter-pill:hover,
+.refine-filter-pill[aria-pressed="true"] {
+    border-color: #ff790b;
+    box-shadow:
+        inset 0 0 0 1px #ff790b,
+        0 1px 2px rgba(0, 0, 0, .06);
+}
+
 
 /* Active filter chips and independent clear controls */
 .refine-filter-chip {
