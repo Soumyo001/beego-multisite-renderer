@@ -700,7 +700,7 @@ body.refine-route dialog.refine-message-dialog::backdrop { background: rgba(0,0,
 
     .refine-card-picture:hover
     .refine-carousel-arrow:not([hidden]),
-    .refine-card-picture:focus-within
+    .refine-card-picture:has(:focus-visible)
     .refine-carousel-arrow:not([hidden]) {
         opacity: 1;
         visibility: visible;
