@@ -115,6 +115,7 @@
             updatePills();
             return;
         }
+        updatePills();
         const ticket = showLoading();
         (async () => {
             await waitForLoading(ticket);
@@ -552,6 +553,7 @@
         if (isCountry) return;
 
         const request = ++latestRequest;
+        updatePills();
         const ticket = showLoading();
         fetching = true;
         state.currentPage = 1;

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"sparrow-ssr/routers"
@@ -99,6 +100,13 @@ func main() {
 	// Bind to all interfaces so Render's proxy can reach
 	// the application.
 	if port := strings.TrimSpace(os.Getenv("PORT")); port != "" {
+		configured, err := strconv.Atoi(port)
+		if err != nil {
+			log.Fatalf("Invalid PORT configuration: %v", err)
+		}
+		if configured < 1 || configured > 65535 {
+			log.Fatal("PORT must be an integer from 1 to 65535")
+		}
 		address = "0.0.0.0:" + port
 	}
 
