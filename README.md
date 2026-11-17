@@ -198,7 +198,7 @@ The database setup command currently uses `DATABASE_URL`. The seed command prefe
 
 The `.env` file must not be committed to version control. PostgreSQL credentials are required to run the application, while ordinary unit and HTTP tests do not require Neon. The Neon integration tests are explicitly enabled using `SPARROW_TEST_NEON=1`.
 
-The application defaults to `127.0.0.1:8080`. When `PORT` is configured, it binds to `0.0.0.0:<PORT>`. Render deployment has not yet been verified.
+The application defaults to `127.0.0.1:8080`. `PORT` changes the listening port without enabling public access. `SPARROW_BIND_HOST` can explicitly select a loopback or private-network IP. Private-LAN testing requires company authorization. Public hosting of this company assessment is prohibited.
 
 ## 5. Concurrent content loading and caching
 
