@@ -1,208 +1,217 @@
 # Sparrow SSR
 
-**A Go/Beego server-side rendering engine for deployment-metadata-driven, multi-site websites.**
+**Deployment-metadata-driven, multi-site server-side rendering in Go and Beego.**
 
-Sparrow SSR is an internship assessment project for **W3 Engineers**. It accepts an HTTP request, resolves the requested **hostname and URL path** against deployment metadata and page canonical URLs, loads the associated JSON documents, and renders complete HTML on the server with Beego templates.
+Sparrow SSR converts publisher-managed JSON content into HTML using Beego MVC templates. It resolves requests through a startup catalog keyed by **request Host + canonical URL path**, combines shared header/page/footer documents, and caches decoded JSON in memory. Accommodation listings are stored separately in PostgreSQL: country pages render property cards on the server, while filtered search results use a JSON API and client-side rendering.
 
-The assessment uses **local JSON files arranged in the same relative directory structure as the publisher's S3/CDN object keys**. It does **not** fetch the JSON documents from S3 at request time. External CSS and JavaScript URLs present in the JSON are preserved in the rendered HTML.
+The JSON content is read from local files under `content/` using the publisher storage-path structure. The application does **not** fetch publisher JSON directly from S3 during a request; external CSS, JavaScript, and permitted image URLs referenced by the content remain external resources.
 
-> **Implementation scope (17 November 2026):** Sparrow SSR uses Go/Beego MVC, publisher deployment JSON, an in-memory Host+path routing catalog, and a concurrent decoded-JSON cache. Property data comes from Neon PostgreSQL through Beego ORM and pgx. The database contains three application tables: `locations`, `properties`, and `property_availability`; publisher isolation uses stable `site_key` values rather than a SQL `sites` table. The `/all/:country` route renders property cards directly into the initial server HTML, with eight properties per page. The `/refine` route uses client-side rendering backed by `/api/properties`. The UI-L1 and UI-L2 interactive loading, search and filter improvements have passed the submitted local verification. Public hosting is prohibited; development is restricted to the company-approved local environment.
+## 1. Features and technology
 
-
-## 1. Technology and requirements
-
-| Component | Current implementation |
+| Area | Implementation |
 | --- | --- |
-| Language | Go; `go.mod` specifies `go 1.25` |
-| Web framework | Beego v2.1.0 (`github.com/beego/beego/v2/server/web`) |
-| CLI used in local testing | Bee CLI v2.3.0 (optional; distinct from the Beego library) |
-| Templates | Go/Beego HTML templates in `views/page.tpl` |
-| Content source | Local JSON fixtures under `content/` |
-| URL resolution | In-memory `(hostname, canonical path)` catalog |
-| JSON content cache | Process-local, typed, concurrency-safe caches |
-| Tests and performance tools | Go `testing`, `httptest`, race detector, benchmarks, `pprof` |
-| Property database | Neon PostgreSQL |
-| Database access | Beego ORM with pgx v5 |
-| Property data models | locations, properties and property_availability; publisher isolation through site_key |
-| Database utilities | cmd/dbsetup and cmd/dbseed |
-| Client frontend | JavaScript, static/js/refine.js and static/js/property_search_popup.js |
-| Property API | GET /api/properties, backed by PostgreSQL |
+| Runtime | Go 1.25 (`go.mod` specifies `go 1.25.0`) |
+| Web framework | Beego v2.1.0, MVC controllers and Go HTML templates |
+| Publisher routing | Startup `Catalog` indexed by normalized Host + canonical path |
+| Multiple publishers | `NewMultiCatalog`; explicit startup preview aliases supported |
+| JSON loading | Concurrent reads on cache misses; typed decoded-content caches; single-flight suppression |
+| Property data | PostgreSQL (Neon-compatible) via Beego ORM and pgx v5 |
+| SQL tables | `locations`, `properties`, `property_availability` |
+| Property isolation | Stable `site_key`; scoped unique property identifiers and slugs |
+| Country listings | `/all/:country`: server-rendered cards, eight per page |
+| Filtered results | `/refine`: JavaScript rendering from `/api/properties`, eight per page |
+| Interactions | Homepage search, date/guest selection, filters, sorting, pagination, loading skeletons, keyboard submission |
+| Diagnostics | Go tests, race detector, benchmarks, `pprof`, read-only opt-in database integration tests |
 
-Run the commands below from the **project root**. A compatible Go toolchain is required; Bee CLI is only needed for `bee run`.
-
-## 2. How the rendering pipeline works
+## 2. Architecture and request flow
 
 ```text
-GET request (Host + URL path)
-             |
-             v
-        Beego router
-             |
-             v
-       PageController
-             |
-             v
-Catalog.Resolve(host, path)       <-- built from deployment metadata
-             |                         and head.canonical_url
-             v
-    PageLocation (three paths)
-             |
-             v
-  ContentLoader.Load(location)
-    |          |          |
-  header     page       footer       <-- concurrent on cache misses;
-    |          |          |               reused on cache hits
-    +----------+----------+
-               |
-               v
-      models.PageContent
-               |
-               v
-      views/page.tpl
-               |
-               v
-     HTML HTTP response
+                     HTTP request (Host + path)
+                                 |
+                           Beego router
+                                 |
+               +-----------------+------------------+
+               |                 |                  |
+        Publisher page      /all/:country          /refine
+               |                 |                  |
+       Catalog.Resolve      Catalog.Resolve      Shared template
+               |                 |                  |
+       ContentLoader      SearchCountry()        refine.js
+         /   |   
+     header page footer      PostgreSQL           /api/properties
+         \   |   /                |                  |
+       Cached decoded      Go renders cards     PostgreSQL search
+          JSON                  |                  |
+               +---------------+------------------+
+                               |
+                       HTML / browser
 ```
 
-### Routing and deployment mapping
+### Publisher routing
 
-1. `services.NewCatalog` reads a deployment response containing `data.published_domain` and `data.uploaded_file_paths`.
-2. It maps the supplied CDN JSON object paths to **local relative content paths**, checks their existence, and identifies the shared `header.json` and `footer.json`.
-3. It reads each routable page's `head.canonical_url` and creates an immutable lookup keyed by normalized **hostname plus URL path**. `links.json` is not treated as a page.
-4. `services.NewMultiCatalog` combines independently validated deployment catalogs and rejects duplicate `(host, path)` routes.
-5. `controllers.PageController` uses the **actual request Host** and URL path; an unregistered host or path returns HTTP 404.
+1. `services.NewCatalog` reads deployment metadata containing `data.published_domain` and `data.uploaded_file_paths`.
+2. It resolves CDN object keys to local files under `content/`, identifies shared `header.json` and `footer.json`, and reads `head.canonical_url` from routable pages.
+3. `services.NewMultiCatalog` merges independent publisher catalogs, rejecting colliding Host + path entries.
+4. `controllers.PageController` resolves the **actual request Host and path**. Unknown hosts or paths return HTTP 404.
+5. The loader combines shared header, page document, and footer. Publisher HTML and referenced CSS/JS are rendered by `views/page.tpl`.
 
-Storage filenames are **not inferred from public URLs**. For example, the public URL `/blog/untitled-post-wrurmp` maps to `untitled-post-wrurmp.json` directly under its site's local storage directory. This mapping comes from deployment metadata and canonical URLs, not a hardcoded hostname-to-directory formula.
+Routes are derived from the deployment metadata and canonical URLs—not inferred from storage filenames or hardcoded domain mappings. `links.json` is not treated as a page. Publisher HTML is treated as trusted source content and must not be populated from arbitrary visitor input.
 
-### Content and HTML
+### Property results
 
-The loader combines a shared `SiteHeader`, a `PageDocument`, and a shared `SiteFooter`. The controller provides the page title, metadata, canonical URL, CSS/JS references, and publisher-provided HTML fragments to `views/page.tpl`.
+- **`/all/:country` (SSR):** Go queries the database with `SearchCountry()`, determines the requested eight-card page, and renders those cards into the initial `views/refine.tpl` HTML. It does not fetch `/api/properties` to populate country cards.
+- **`/refine` (CSR):** JavaScript fetches `/api/properties` for destination, guest, and date constraints. Price, Eco, amenity filters, sorting, and eight-card pagination update the results in the browser.
+- **Filter handoff:** Filter Search from a country page navigates to `/refine?` with the selected parameters. The country page itself keeps server-rendered property content.
+- **Interaction feedback:** Skeleton cards appear during result fetching, filtering, sorting, pagination, and the homepage Search transition. Header alignment and responsive styles retain the publisher layout.
+- **`/health`:** A Host-independent health route; a successful response by itself does not verify database connectivity or rendered property results.
 
-Shared CSS, template CSS, page CSS, shared JS, and page JS remain external URLs when present; nullable page-level CSS/JS are handled as optional fields. The HTML fragments are intentionally treated as trusted publisher-controlled content (`template.HTML`)—they must **not** be treated as safe when obtained from untrusted visitors.
-
-## 3. Project layout
+## 3. Project structure
 
 ```text
 sparrow-ssr/
-├── main.go
-├── go.mod
-├── go.sum
-├── cmd/
-│   ├── dbsetup/
-│   └── dbseed/
+├── main.go                      # Startup, catalog, loader, database, listeners
+├── go.mod / go.sum
+├── .env.example                 # Environment-variable template
 ├── conf/
 │   ├── app.conf
-│   └── deployment.json
-├── models/
-│   ├── content.go
-│   ├── deployment.go
-│   ├── route.go
-│   ├── render.go
-│   ├── property.go
-│   └── availability.go
+│   └── deployment.json          # Publisher deployment metadata
+├── cmd/
+│   ├── dbsetup/                 # Fresh database schema setup
+│   └── dbseed/                  # Initial property/availability records
+├── models/                     # Publisher JSON, rendering and ORM models
 ├── services/
 │   ├── catalog.go
 │   ├── multi_catalog.go
+│   ├── catalog_preview.go
 │   ├── content_loader.go
 │   ├── file_cache.go
 │   ├── property_database.go
 │   ├── property_db_search.go
-│   ├── property_searcher.go
+│   ├── property_country.go
 │   ├── property_filters.go
 │   └── *_test.go
 ├── controllers/
 │   ├── page.go
+│   ├── country.go
 │   ├── refine.go
 │   ├── property_api.go
 │   └── health.go
-├── routers/
-│   └── router.go
+├── routers/router.go
 ├── views/
 │   ├── page.tpl
 │   └── refine.tpl
 ├── static/
-│   ├── css/
-│   ├── js/
+│   ├── css/                    # refine.css, all.css, search popup CSS
+│   ├── js/                     # refine.js, property_search_popup.js
 │   └── img/
-├── tests/
-├── content/
-└── README.md
+├── content/                    # Local publisher JSON storage hierarchy
+└── tests/                      # HTTP integration tests and benchmarks
 ```
 
-`services/` contains application-specific logic; controllers handle HTTP/template data; `models/` represent observed JSON fields. The test files under `tests/` exercise the Beego HTTP path, not just isolated services.
+## 4. Setup and running locally
 
-## 4. Running the application
+### Prerequisites
 
-### PostgreSQL initialization
+- Go 1.25 or a compatible newer toolchain.
+- Access to a PostgreSQL database with TLS enabled; Neon PostgreSQL is the development database used for this project.
+- Publisher deployment metadata in `conf/deployment.json` and the corresponding local files under `content/`.
+- Node.js is optional for checking JavaScript syntax. Bee CLI is optional if you prefer `bee run` to `go run .`.
 
-Configure `.env` with a valid Neon PostgreSQL connection string requiring TLS.
+### 4.1 Install dependencies and configure the environment
 
-For a newly created database, run:
+From the project root:
+
+```bash
+go mod download
+cp .env.example .env
+```
+
+Edit `.env` with your own database connection URL. The standard configuration has these keys (no additional database variable is required):
+
+```dotenv
+SPARROW_DEPLOYMENTS=conf/deployment.json
+PORT=8080
+SPARROW_RUNMODE=
+DATABASE_URL=
+DATABASE_URL_POOLED=
+```
+
+Set **`DATABASE_URL`** to a valid `postgres://` or `postgresql://` connection string with `sslmode=require` (or `verify-ca` / `verify-full`). Do not commit `.env` or include credentials in logs. If `DATABASE_URL` is empty, the running server can use `DATABASE_URL_POOLED`; the database setup utility needs `DATABASE_URL` explicitly.
+
+`PORT` controls the listener:
+
+| Configuration | Listening address |
+| --- | --- |
+| `PORT` unset or blank | `127.0.0.1:8080` |
+| `PORT=8080` | `0.0.0.0:8080` |
+| Any valid integer from 1 to 65535 | `0.0.0.0:<PORT>` |
+| Invalid or out-of-range value | Startup error |
+
+A `0.0.0.0` listener can be reached through network interfaces permitted by firewall and routing rules. A listening address alone does **not** register a request Host in Sparrow's catalog. `SPARROW_RUNMODE` can be left blank to use the configured Beego default.
+
+### 4.2 Initialize a brand-new PostgreSQL database
+
+On **first setup of an empty database**, with the required `DATABASE_URL` configured, run:
 
 ```bash
 go run ./cmd/dbsetup
 go run ./cmd/dbseed
 ```
 
-The setup command creates the normalized `sites`, `locations`, `properties`, and `property_availability` tables, indexes and foreign-key constraints.
+`cmd/dbsetup` uses Beego ORM synchronization and creates the three application tables:
 
-The seed command inserts the application's initial sample property and availability records. It does not read property JSON files.
+- `locations`: reusable geographical records.
+- `properties`: publisher-scoped property records identified by `site_key`, `property_id`, and `slug`.
+- `property_availability`: date windows referencing property rows.
 
-Re-running the seed command does not overwrite existing property records. The original verification inserted 1 site, 8 locations, 15 properties and 15 availability records; a second execution inserted zero new records.
+It also establishes indexes, scoped uniqueness, and foreign-key relationships from properties to locations and availability to properties. **There is no SQL `sites` table.**
 
-### Running the application
+`cmd/dbseed` inserts the bundled demonstration dataset for the registered sample publisher: **8 locations, 15 properties, and 15 availability records** on an empty database. It uses `DATABASE_URL` in the standard environment configuration; its code also recognizes an optional direct-connection override, but that override is **not required** in `.env.example`. Seeding uses `ReadOrCreate`, so existing matching records are preserved rather than overwritten.
+
+**Run schema setup and seeding only against a database you intend to initialize.** The commands can write schema/data; neither is needed for normal application startup once the database has been prepared. Schema privileges and a database connection are required.
+
+### 4.3 Start the application
 
 ```bash
 go run .
 ```
 
-The application initializes PostgreSQL before accepting requests. The property API uses PostgreSQL as its runtime property and availability source. Publisher-managed page JSON under `content/` remains necessary for server-side rendering.
-
-### Single-deployment demo
+Or, if Bee CLI is installed:
 
 ```bash
-go mod download
-go run .
-# Or, if Bee CLI is installed:
 bee run
 ```
 
-By default, `main.go` listens on `127.0.0.1:8080`. When a valid `PORT` is configured, it listens on `0.0.0.0:<PORT>` for company-approved LAN development. It loads `conf/deployment.json` by default and registers the publisher routes discovered from that metadata.
+Startup loads the publisher catalog and decoded-content loader, establishes the PostgreSQL connection, registers the routes, then begins serving HTTP. An unavailable or unconfigured database causes startup to fail.
 
-Because routing requires the published hostname, make requests with a matching `Host` header:
+Because publisher routes require a registered hostname, the following curl example explicitly supplies the expected Host header:
 
 ```bash
-curl -i \
-  -H 'Host: test-travel-templates.beta.123presto.com' \
+curl -i -H 'Host: test-travel-templates.beta.123presto.com' \
   http://127.0.0.1:8080/
+
+curl -i -H 'Host: test-travel-templates.beta.123presto.com' \
+  http://127.0.0.1:8080/all/usa
+
+curl -i -H 'Host: test-travel-templates.beta.123presto.com' \
+  'http://127.0.0.1:8080/api/properties?search=USA&pax=2&order=1'
+
+curl -i http://127.0.0.1:8080/health
 ```
 
-The current deployment's known paths are `/`, `/privacy-policy`, `/site-terms`, and `/blog/untitled-post-wrurmp`. An unknown hostname or unknown canonical path should receive HTTP 404. A plain request to `127.0.0.1:8080` without the expected Host is also 404; no development host alias is configured.
+With the bundled 15-property dataset, `/all/usa` renders eight property cards in the initial HTML and `/all/usa?page=2` renders seven. `/all/canada` is a valid empty country page with this seed data. `/refine?search=USA&pax=2&order=1` uses the property API and client-side rendering. Unknown publisher hosts return 404 for content and property routes.
 
-### Multiple deployments at startup
+### 4.4 Register multiple publishers at startup
 
-`main.go` reads an **optional, comma-separated** `SPARROW_DEPLOYMENTS` environment variable. For example, **after you supply a valid second deployment metadata file and its local content**:
+Set `SPARROW_DEPLOYMENTS` to a comma-separated list of deployment manifests whose local content files are present:
 
 ```bash
 SPARROW_DEPLOYMENTS='conf/deployment.json,conf/second-deployment.json' go run .
 ```
 
-`conf/second-deployment.json` is illustrative; **it is not bundled with this project**. The existing real demo consists of one deployment. The multi-site tests create disposable synthetic sites instead.
+`conf/second-deployment.json` is a **placeholder**, not a file bundled with this repository. Each manifest must use its own valid published hostname and canonical routes. Tests use synthetic multi-publisher manifests to verify routing isolation.
 
-
-The application uses `godotenv.Load()` to load an optional `.env` file. Existing process environment variables take precedence over values in that file.
-
-The web application uses `DATABASE_URL` when it is nonempty. Otherwise, it uses `DATABASE_URL_POOLED`. This is environment-variable selection, not automatic connection-failure recovery.
-
-The database setup command currently uses `DATABASE_URL`. The seed command prefers `DATABASE_URL_DIRECT`, falling back to `DATABASE_URL`. Database setup and seeding should use direct PostgreSQL connections.
-
-The `.env` file must not be committed to version control. PostgreSQL credentials are required to run the application, while ordinary unit and HTTP tests do not require Neon. The Neon integration tests are explicitly enabled using `SPARROW_TEST_NEON=1`.
-
-The application defaults to `127.0.0.1:8080` when `PORT` is unset.
-
-When a valid `PORT` is configured, the application listens on `0.0.0.0:<PORT>`, making it reachable through available network interfaces, subject to firewall and network restrictions.
-
-This configuration is approved for development within the company's controlled local network. Public deployment of this company assessment is prohibited.
+Optional `SPARROW_PREVIEW_SOURCE_HOST` and `SPARROW_PREVIEW_HOST` variables can register **one explicit preview hostname** during startup. They are not a wildcard or a dynamic registration service.
 
 ## 5. Concurrent content loading and caching
 
@@ -228,7 +237,7 @@ Tests submitted on 5 November 2026 passed for shared header/footer reuse, 50 sim
 
 ## 6. Optimization alternatives and selection rationale
 
-**Instructor question:** *“List the available options of optimization and decide which approach is better and why.”*
+**Evaluation goal:** Compare practical optimization approaches and select the one supported by the application workload and measured evidence.
 
 There is no finite list of every possible optimization; the table evaluates the **relevant options for this implementation**. Only the selected content-cache design has been directly compared with uncached loading in the submitted benchmarks. Other choices remain candidates, not measured winners or losers.
 
@@ -241,17 +250,17 @@ There is no finite list of every possible optimization; the table evaluates the 
 | No content cache | Always reads current local files | Repeated I/O, decode and allocations | **Benchmark baseline**, not selected |
 | Cache decoded JSON in Go process memory | Reuses headers/footers, avoids I/O and JSON decode on hits, no network round trip | Process-local, potentially stale, unbounded memory | **Selected and measured** |
 | Cache complete rendered HTML | Potentially avoids repeated template execution | More complicated page/site invalidation; higher duplicated HTML memory | **Deferred**, not benchmarked |
-| Redis/distributed cache | Shared cache across server instances; centralized invalidation is possible with additional design | Separate service/network traffic, serialization and invalidation complexity | **Not selected for the current single-process demo**; not directly benchmarked |
+| Redis/distributed cache | Shared cache across server instances; centralized invalidation is possible with additional design | Separate service/network traffic, serialization and invalidation complexity | **Not selected for the current single-process application**; not directly benchmarked |
 | Local + Redis hybrid cache | Local hits plus distributed coordination | Two-layer invalidation and operational complexity | **Deferred** |
 | `sync.Map` or `sync.RWMutex` instead of mutex map | Might help particular contention patterns | Requires dedicated benchmark and correctness review | **Not changed** |
 | Bounded cache, TTL, LRU or explicit deployment versioning | Controls memory growth/staleness | Requires lifetime, eviction and publishing semantics | **Future work** |
 | Preallocate buffers, stream template output or cache templates/HTML | Might reduce response allocations | Must preserve exact HTML and correct Beego response behavior | **Investigate only with A/B tests** |
-| HTTP compression, browser caching, CDN optimization | Can reduce transferred bytes or asset delivery latency | Separate from JSON decode; depends on proxy, assets and clients | **Out of scope for current service benchmark** |
+| HTTP compression, browser caching, CDN optimization | Can reduce transferred bytes or asset delivery latency | Separate from JSON decode; depends on proxy, assets and clients | **Not measured by this service benchmark** |
 | Additional goroutines on warm-cache hits | No independent filesystem I/O remains | Adds scheduling/synchronization overhead | **Not selected** |
 
 ### Why in-process decoded JSON caching was selected over Redis
 
-The assessment's deployed server is currently a **single Beego process reading local files**. Cached Go structs can be reused directly in the same process, with no Redis service or network request. Individual file caching also shares one header and footer among multiple pages while retaining distinct storage-path keys across sites.
+This application uses a **single Beego process reading local files**. Cached Go structs can be reused directly in the same process, with no Redis service or network request. Individual file caching also shares one header and footer among multiple pages while retaining distinct storage-path keys across sites.
 
 Redis becomes valuable when **multiple application instances** need a shared cache, coordinated updates, or more extensive operational controls. It is **not claimed to be intrinsically slower in every deployment**; Redis and this in-process cache have **not been directly benchmarked** here. Adding Redis today would introduce components that do not address the remaining observed template/output-buffer allocation costs. Redis's documentation itself discusses the latency advantage of keeping frequently used data in an application-local cache.
 
@@ -269,7 +278,7 @@ go test ./services -run 'TestMultiCatalog' -v -count=1
 go test ./tests -run '^TestMultiSiteSSRHTTP$' -v -count=1
 ```
 
-The user-reported functional and race suites passed on 5 November 2026, including the multi-site Beego integration test. A passing `-race` run means **no race was detected under those test executions**, not that all possible schedules are proven race-free.
+The functional and race suites passed in the submitted local test runs, including multi-site Beego integration tests. A passing `-race` run means **no race was detected under those test executions**, not that all possible schedules are proven race-free.
 
 ### Loader-only benchmarks
 
@@ -295,7 +304,7 @@ The HTTP benchmarks use `httptest.NewServer` with an actual loopback HTTP client
 
 ## 8. Measured performance (submitted 5 November 2026)
 
-**Measurement environment:** Linux `amd64`; Intel Core i3-4130 @ 3.40 GHz; benchmarks displayed `-4` (GOMAXPROCS = 4). Values are from the user's submitted command output, not independently measured on other hardware.
+**Measurement environment:** Linux `amd64`; Intel Core i3-4130 @ 3.40 GHz; benchmarks displayed `-4` (GOMAXPROCS = 4). Values are from the recorded local benchmark output and are not measurements on other hardware.
 
 ### Decoded-content loader only
 
@@ -336,7 +345,7 @@ go tool pprof -alloc_objects -top mem_warm_sequential.out
 
 This run measured **306,784 ns/op**, **150,711 B/op**, **266 allocs/op**, and **112.33 MB/s** of response-body throughput. In the total-allocated-bytes profile, `bytes.growSlice` accounted for approximately **90.60%** of sampled/estimated allocation volume. Template execution and Beego response writing contributed substantial **overlapping cumulative call paths**. These percentages represent allocations **over the profiling run**, not the application's resident memory or a direct percentage of HTTP response latency.
 
-**Interpretation:** Warm content loading is not the observed main allocation source. Template evaluation and output buffering are candidates for further study, but the existing data do **not** prove that a different renderer or buffer policy is better. No production rendering rewrite was made on this evidence.
+**Interpretation:** Warm content loading is not the observed main allocation source. Template evaluation and output buffering are candidates for further study, but the existing data do **not** prove that a different renderer or buffer policy is better. No rendering-engine rewrite was justified by these measurements.
 
 ## 9. Known limitations and follow-up work
 
@@ -346,16 +355,17 @@ This run measured **306,784 ns/op**, **150,711 B/op**, **266 allocs/op**, and **
 - **Input and trust boundaries:** lexical relative-path validation is present but is not a full symlink-containment policy. Publisher-supplied HTML is rendered as trusted; do not feed untrusted visitor HTML into those fields.
 - **Asset status:** some local `/static/img/...` URLs returned 404 and certain external image URLs returned 403 during browser testing. Root cause for external 403 has not been established. These are intentionally deferred; CSS/JS CDN links remain unchanged.
 - **Benchmark scope:** loopback HTTP benchmarks are not browser page-load or production traffic measurements. End-to-end network/CDN timings, peak load tests, and latency percentiles have not been measured.
-- **Hosting and access:** the instructor prohibits public hosting of this company assessment. The previous Render service was removed as reported by the user. Development uses localhost by default or the instructor-approved company LAN when `PORT` is configured. LAN access must remain protected by the company's network controls.
 
 Future optimizations should start with **measured requirements**, then isolated tests that preserve the same HTML and multi-site routing behavior. Profiling indicates template/output-buffer allocation paths are logical candidates for an experiment, not an automatic rewrite.
 
-## 10. Reference documentation
 
-- [Go: `sync` package (`Mutex`, `WaitGroup`, `Map`)](https://pkg.go.dev/sync)
-- [Go: diagnostics, profiling, and tracing](https://go.dev/doc/diagnostics)
-- [Redis: client-side caching and network-round-trip trade-offs](https://redis.io/docs/latest/develop/clients/client-side-caching/)
+## 10. References
+
+- [Go `sync` package](https://pkg.go.dev/sync)
+- [Go diagnostics, profiling and tracing](https://go.dev/doc/diagnostics)
+- [Beego documentation](https://beegodoc.com/)
+- [Redis client-side caching](https://redis.io/docs/latest/develop/clients/client-side-caching/)
 
 ---
 
-**Project status (17 November 2026):** The deployment-metadata-driven SSR architecture, Host+path routing, concurrent decoded-JSON cache, and three-table Neon PostgreSQL integration remain implemented. The RD-4 country SSR → refine CSR architecture was verified through submitted local tests, server-rendered HTML checks and browser evidence. Country pages render eight properties per page directly on the server without fetching Sparrow's property API. The `/refine` page uses the PostgreSQL-backed property API for client-side results. UI-L1 and UI-L2 have completed user-reported browser verification, including interactive loading skeletons, filter controls, homepage Search, keyboard submission, responsive styling and sort-dropdown interactions. The former public Render deployment has been removed as reported by the user, and company-approved local/LAN development is now required. MP-1A remains verified, MP-1B is paused and unimplemented, and MP-1C is outside the active scope.
+**Status (17 November 2026):** Publisher routing, local JSON SSR, decoded-content caching, the three-table PostgreSQL property integration, country SSR, refine CSR, and responsive loading/search/filter interactions are implemented. The documented functional and race-test runs passed locally. The performance figures above describe the recorded benchmark workloads, not remote traffic or browser page-load performance. Multi-preview isolation has automated test coverage; file-configured bulk preview aliases and automatic publisher-registration lifecycle management have not been implemented.
