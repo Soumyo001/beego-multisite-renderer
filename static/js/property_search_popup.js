@@ -90,7 +90,7 @@
                 <span class="sparrow-range-summary" role="status"
                       aria-live="polite"></span>
                 <div class="sparrow-range-actions">
-                    <button type="button" class="sparrow-range-clear">Clear</button>
+                    <button type="button" class="sparrow-range-clear">Cancel</button>
                     <button type="button" class="sparrow-range-apply">Continue</button>
                 </div>
             </div>
@@ -103,7 +103,7 @@
     const nextMonth = calendar.querySelector(".sparrow-range-next");
     const summary = calendar.querySelector(".sparrow-range-summary");
     const applyDates = calendar.querySelector(".sparrow-range-apply");
-    const clearDates = calendar.querySelector(".sparrow-range-clear");
+    const cancelDates = calendar.querySelector(".sparrow-range-clear");
 
     const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     let pendingStart = "";
@@ -118,6 +118,28 @@
     function todayISO() {
         const today = new Date();
         return isoDate(today.getFullYear(), today.getMonth(), today.getDate());
+    }
+
+    function defaultOneNightRange() {
+        const checkIn = new Date();
+        const checkOut = new Date(
+            checkIn.getFullYear(),
+            checkIn.getMonth(),
+            checkIn.getDate() + 1
+        );
+
+        return {
+            start: isoDate(
+                checkIn.getFullYear(),
+                checkIn.getMonth(),
+                checkIn.getDate()
+            ),
+            end: isoDate(
+                checkOut.getFullYear(),
+                checkOut.getMonth(),
+                checkOut.getDate()
+            )
+        };
     }
 
     function validFutureDate(value) {
@@ -410,15 +432,10 @@
         calendar.close();
     });
 
-    clearDates.addEventListener("click", () => {
-        selectedStart = "";
-        selectedEnd = "";
-
+    cancelDates.addEventListener("click", () => {
+        // Cancel uncommitted edits without clearing the selected date range.
         calendarDraftStart = "";
         calendarDraftEnd = "";
-
-        dates.value = "";
-        setError("");
         saveSearchState();
         calendar.close();
     });
@@ -855,8 +872,10 @@
         }
     });
 
-    // Restore the newest saved edits, or the current URL as a fallback.
-    const restored = readSavedSearch() || searchFromURL();
+    // Keep saved edits ahead of URL fallback. First-time visitors get one night.
+    const savedSearch = readSavedSearch();
+    const urlSearch = savedSearch ? null : searchFromURL();
+    const restored = savedSearch || urlSearch;
 
     if (restored) {
         destination.value = restored.destination;
@@ -867,12 +886,26 @@
         calendarDraftStart = restored.draftStart;
         calendarDraftEnd = restored.draftEnd;
 
+        // Missing or expired stored dates fall back to today's one-night range.
+        if (!selectedStart || !selectedEnd) {
+            const initialRange = defaultOneNightRange();
+            selectedStart = initialRange.start;
+            selectedEnd = initialRange.end;
+        }
+
         dates.value = selectedStart && selectedEnd
             ? `${formatDate(selectedStart)} – ${formatDate(selectedEnd)}`
             : "";
 
         setGuests(restored.guests);
+
+        // Persist values restored from a direct /refine link.
+        if (urlSearch) saveSearchState();
     } else {
+        const initialRange = defaultOneNightRange();
+        selectedStart = initialRange.start;
+        selectedEnd = initialRange.end;
+        dates.value = `${formatDate(selectedStart)} – ${formatDate(selectedEnd)}`;
         setGuests(2);
     }
 
