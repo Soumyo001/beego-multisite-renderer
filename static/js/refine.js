@@ -226,23 +226,20 @@
     }
 
     function renderWithLoading(afterRender) {
-        // If the API is still loading, its final render will use the latest UI state.
+        // An API request already owns the loading state.
+        // Its final render will use the latest filters.
         if (fetching) {
             updatePills();
             return;
         }
-        updatePills();
-        const ticket = showLoading();
-        (async () => {
-            await waitForLoading(ticket);
-            if (ticket.id !== loadingSequence) return;
-            try {
-                render();
-            } finally {
-                finishLoading(ticket);
-            }
-            if (typeof afterRender === "function") afterRender();
-        })();
+
+        // Client-side sort/filter operations already have their data.
+        // Render immediately without hiding the grid or showing skeletons.
+        render();
+
+        if (typeof afterRender === "function") {
+            afterRender();
+        }
     }
 
     function navigateWithLoading(url) {
