@@ -35,6 +35,33 @@
     let selectedStart = "";
     let selectedEnd = "";
 
+    // UI-L4: use the publisher's canonical hostname as the storage identity.
+    // Preview aliases retain the original publisher canonical hostname.
+    const canonicalHref = document.querySelector('link[rel="canonical"]')
+        ?.getAttribute("href");
+    let publisherHost = window.location.host.toLowerCase();
+
+    if (canonicalHref) {
+        try {
+            const canonical = new URL(canonicalHref);
+
+            if ((canonical.protocol === "https:" ||
+                 canonical.protocol === "http:") &&
+                canonical.hostname) {
+                publisherHost = canonical.hostname.toLowerCase();
+            }
+        } catch {
+            // Fall back to the current host if the canonical URL is invalid.
+        }
+    }
+
+    const searchStorageKey = `sparrow:last-search:v1:${publisherHost}`;
+
+    let saveTimer = null;
+    let rememberedGuests = 2;
+    let calendarDraftStart = "";
+    let calendarDraftEnd = "";
+
     // Preserve the publisher's readonly date summary field.
     // A native modal hosts an accessible two-month range calendar.
     dates.setAttribute("aria-haspopup", "dialog");
@@ -91,6 +118,131 @@
     function todayISO() {
         const today = new Date();
         return isoDate(today.getFullYear(), today.getMonth(), today.getDate());
+    }
+
+    function validFutureDate(value) {
+        if (typeof value !== "string" ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            return "";
+        }
+
+        const time = Date.parse(`${value}T00:00:00Z`);
+        if (!Number.isFinite(time)) return "";
+
+        return new Date(time).toISOString().slice(0, 10) === value &&
+            value >= todayISO() ? value : "";
+    }
+
+    function normalizeSearchState(value) {
+        if (!value || typeof value !== "object" ||
+            Array.isArray(value) || value.version !== 1) {
+            return null;
+        }
+
+        const destinationText = typeof value.destination === "string"
+            ? value.destination.slice(0, 200)
+            : "";
+
+        const guests = Number.isInteger(value.guests) &&
+            value.guests >= 1 && value.guests <= 20
+            ? value.guests : 2;
+
+        let dateStart = validFutureDate(value.dateStart);
+        let dateEnd = validFutureDate(value.dateEnd);
+
+        if (!dateStart || !dateEnd || dateEnd <= dateStart) {
+            dateStart = "";
+            dateEnd = "";
+        }
+
+        let draftStart = validFutureDate(value.draftStart);
+        let draftEnd = validFutureDate(value.draftEnd);
+
+        if (!draftStart || (draftEnd && draftEnd <= draftStart)) {
+            draftStart = "";
+            draftEnd = "";
+        }
+
+        return {
+            destination: destinationText,
+            guests,
+            dateStart,
+            dateEnd,
+            draftStart,
+            draftEnd
+        };
+    }
+
+    function readSavedSearch() {
+        try {
+            const raw = localStorage.getItem(searchStorageKey);
+
+            return raw
+                ? normalizeSearchState(JSON.parse(raw))
+                : null;
+        } catch {
+            // Blocked storage must not break the search popup.
+            return null;
+        }
+    }
+
+    function searchFromURL() {
+        if (window.location.pathname !== "/refine") return null;
+
+        const params = new URLSearchParams(window.location.search);
+
+        if (!params.has("search") && !params.has("pax")) {
+            return null;
+        }
+
+        return normalizeSearchState({
+            version: 1,
+            destination: params.get("search") || "",
+            guests: Number(params.get("pax")),
+            dateStart: params.get("dateStart") || "",
+            dateEnd: params.get("dateEnd") || "",
+            draftStart: "",
+            draftEnd: ""
+        });
+    }
+
+    function saveSearchState() {
+        const snapshot = {
+            version: 1,
+            destination: destination.value.slice(0, 200),
+            guests: rememberedGuests,
+            dateStart: selectedStart,
+            dateEnd: selectedEnd,
+            draftStart: calendarDraftStart,
+            draftEnd: calendarDraftEnd
+        };
+
+        try {
+            localStorage.setItem(
+                searchStorageKey,
+                JSON.stringify(snapshot)
+            );
+        } catch {
+            // In-page search still works without localStorage.
+        }
+    }
+
+    function scheduleSearchSave() {
+        window.clearTimeout(saveTimer);
+
+        saveTimer = window.setTimeout(() => {
+            saveTimer = null;
+            saveSearchState();
+        }, 250);
+    }
+
+    function flushSearchSave() {
+        if (saveTimer === null) return;
+
+        window.clearTimeout(saveTimer);
+        saveTimer = null;
+
+        saveSearchState();
     }
 
     function utcDayCount(start, end) {
@@ -159,6 +311,11 @@
                 } else {
                     pendingEnd = iso;
                 }
+
+                calendarDraftStart = pendingStart;
+                calendarDraftEnd = pendingEnd;
+                saveSearchState();
+
                 renderCalendar(iso);
             });
             grid.append(button);
@@ -203,8 +360,10 @@
 
     function openDates() {
         const today = new Date();
-        pendingStart = selectedStart;
-        pendingEnd = selectedEnd;
+        pendingStart = calendarDraftStart || selectedStart;
+        pendingEnd = calendarDraftStart
+            ? calendarDraftEnd
+            : selectedEnd;
         visibleMonth = pendingStart
             ? new Date(`${pendingStart}T12:00:00`)
             : new Date(today.getFullYear(), today.getMonth(), 1);
@@ -241,16 +400,26 @@
         if (!pendingStart || !pendingEnd || pendingEnd <= pendingStart) return;
         selectedStart = pendingStart;
         selectedEnd = pendingEnd;
+
+        calendarDraftStart = "";
+        calendarDraftEnd = "";
+
         dates.value = `${formatDate(selectedStart)} – ${formatDate(selectedEnd)}`;
         setError("");
+        saveSearchState();
         calendar.close();
     });
 
     clearDates.addEventListener("click", () => {
         selectedStart = "";
         selectedEnd = "";
+
+        calendarDraftStart = "";
+        calendarDraftEnd = "";
+
         dates.value = "";
         setError("");
+        saveSearchState();
         calendar.close();
     });
 
@@ -326,6 +495,7 @@
 
     function setGuests(count) {
         const value = Math.max(1, Math.min(20, count));
+        rememberedGuests = value;
 
         guestNumber.value = String(value);
 
@@ -348,6 +518,10 @@
     function validateDates(start, end) {
         if ((start && !end) || (!start && end)) {
             return "Choose both check-in and checkout dates.";
+        }
+
+        if (start && start < todayISO()) {
+            return "Check-in date cannot be in the past.";
         }
 
         if (start && end <= start) {
@@ -435,6 +609,7 @@
             event.stopImmediatePropagation();
 
             setGuests((guestCount() || 2) + amount);
+            saveSearchState();
 
             // After a pointer selection, focus the guest display
             // so Enter searches without opening a mobile keyboard.
@@ -445,6 +620,18 @@
         }, true);
     }
 
+    guestNumber.addEventListener("input", () => {
+        const count = guestCount();
+        if (count === null) return;
+
+        rememberedGuests = count;
+
+        guestDisplay.value =
+            `${count} ${count === 1 ? "Person" : "Persons"}`;
+
+        scheduleSearchSave();
+    });
+    
     guestNumber.addEventListener("change", () => {
         const value = guestCount();
 
@@ -456,6 +643,7 @@
         }
 
         setGuests(value);
+        saveSearchState();
     });
 
     guestClear.addEventListener("click", (event) => {
@@ -464,6 +652,7 @@
 
         // Restore the original default of two guests.
         setGuests(2);
+        saveSearchState();
     }, true);
 
     guestSave.addEventListener("click", (event) => {
@@ -480,6 +669,7 @@
         }
 
         setGuests(value);
+        saveSearchState();
         closeGuests();
 
         // Return focus to the visible guest field.
@@ -606,6 +796,10 @@
             params.set("dateEnd", selectedEnd);
         }
 
+        // Persist the final submitted values before navigation.
+        flushSearchSave();
+        saveSearchState();
+
         // Relative URL: preserve the current host and port.
         navigateWithSearchLoading(
             search,
@@ -639,6 +833,10 @@
         });
     }
 
+    // Preserve the latest destination, even before submitting.
+    destination.addEventListener("input", scheduleSearchSave);
+    destination.addEventListener("change", flushSearchSave);
+
     // Close pickers when clicking elsewhere.
     document.addEventListener("click", (event) => {
         if (!dateWrap.contains(event.target)) {
@@ -657,5 +855,27 @@
         }
     });
 
-    setGuests(2);
+    // Restore the newest saved edits, or the current URL as a fallback.
+    const restored = readSavedSearch() || searchFromURL();
+
+    if (restored) {
+        destination.value = restored.destination;
+
+        selectedStart = restored.dateStart;
+        selectedEnd = restored.dateEnd;
+
+        calendarDraftStart = restored.draftStart;
+        calendarDraftEnd = restored.draftEnd;
+
+        dates.value = selectedStart && selectedEnd
+            ? `${formatDate(selectedStart)} – ${formatDate(selectedEnd)}`
+            : "";
+
+        setGuests(restored.guests);
+    } else {
+        setGuests(2);
+    }
+
+    // Flush pending typing when navigating away or refreshing.
+    window.addEventListener("pagehide", flushSearchSave);
 })();
