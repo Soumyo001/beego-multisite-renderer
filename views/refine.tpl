@@ -23,6 +23,8 @@
           class="refine-app"
           data-site-key="{{.SiteKey}}"{{if .IsCountry}}
           data-country="{{.Country}}"
+          data-total="{{.Total}}"
+          data-page="{{.Page}}"
           data-price-low="{{.FilterPriceLow}}"
           data-price-high="{{.FilterPriceHigh}}"
           data-price-currency="{{.FilterCurrency}}"{{end}}>
@@ -253,32 +255,11 @@
                 </p>
 
                 <nav id="refine-pagination" class="refine-pagination"
-                     aria-label="Country listing pages">
-
-                    {{if .PrevURL}}
-                    <a class="refine-page-button country-page-link"
-                       href="{{.PrevURL}}">Previous</a>
-                    {{else}}
-                    <button type="button" class="refine-page-button"
-                            disabled>Previous</button>
-                    {{end}}
-
-                    {{range .PageLinks}}
-                        {{if .Current}}
-                        <span class="refine-page-button is-current"
-                              aria-current="page">{{.Number}}</span>
-                        {{else}}
-                        <a class="refine-page-button country-page-link"
-                           href="{{.URL}}">{{.Number}}</a>
-                        {{end}}
-                    {{end}}
-
+                     aria-label="Load additional country properties">
                     {{if .NextURL}}
                     <a class="refine-page-button country-page-link"
-                       href="{{.NextURL}}">Next</a>
-                    {{else}}
-                    <button type="button" class="refine-page-button"
-                            disabled>Next</button>
+                       rel="next"
+                       href="{{.NextURL}}">Load more properties</a>
                     {{end}}
                 </nav>
             </div>

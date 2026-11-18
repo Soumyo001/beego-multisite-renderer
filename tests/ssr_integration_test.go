@@ -881,16 +881,31 @@ func TestMultiSiteSSRHTTP(t *testing.T) {
 					)
 				}
 
-				// The fixture has one USA property per publisher,
-				// so both pagination directions must be disabled.
+				// UI-L5: the fixture has one USA property per
+				// publisher, so no additional batch is available.
+				// Numbered pagination is no longer rendered.
 				if strings.HasPrefix(tc.path, "/all/usa") {
 					for _, fragment := range []string{
-						`disabled>Previous</button>`,
-						`disabled>Next</button>`,
+						`data-total="1"`,
+						`data-page="1"`,
+						`Showing 1–1 of 1 properties`,
 					} {
 						if !strings.Contains(body, fragment) {
 							t.Errorf(
-								"%s%s: missing disabled control %q",
+								"%s%s: missing country batch metadata %q",
+								tc.host, tc.path, fragment,
+							)
+						}
+					}
+
+					for _, fragment := range []string{
+						`disabled>Previous</button>`,
+						`disabled>Next</button>`,
+						`class="refine-page-button country-page-link"`,
+					} {
+						if strings.Contains(body, fragment) {
+							t.Errorf(
+								"%s%s: unexpected pagination control %q",
 								tc.host, tc.path, fragment,
 							)
 						}

@@ -69,7 +69,7 @@
 
     const state = {
         search: "", pax: 2, dateStart: "", dateEnd: "",
-        properties: [], currentPage: 1,
+        properties: [], visibleCount: PAGE_SIZE,
         priceMin: null, priceMax: null, eco: false, amenities: new Set(),
         favorites: readFavorites()
     };
@@ -139,6 +139,15 @@
         }
     });
 
+    // UI-L5: appended result batches, with the same eight-item grid.
+    let visibleResults = [];
+    let countryNextURL = "";
+    let countryLoaded = 0;
+    let countryRequestInFlight = false;
+    let countryLoadError = false;
+    const countryPageStart = isCountry
+        ? (Math.max(1, Number(app.dataset.page) || 1) - 1) * PAGE_SIZE
+        : 0;
     let draft = null;
     let latestRequest = 0;
     let calendarOrigin = "standalone";
@@ -840,108 +849,147 @@
         return card;
     }
 
-    function pageButton(text, destination, disabled = false, selected = false) {
-        const button = node("button", "refine-page-button", text);
+    // UI-L5: preserve SSR HTML on country routes, and append CSR cards locally.
+    const moreButton = node("button", "refine-page-button", "Load more properties");
+    moreButton.type = "button";
 
-        button.type = "button";
-        button.disabled = disabled;
+    function findNextCountryURL(root) {
+        const next = root?.querySelector('a.country-page-link[rel="next"]');
+        if (!next) return "";
 
-        if (selected) {
-            button.classList.add("is-current");
-            button.setAttribute("aria-current", "page");
-            button.setAttribute(
-                "aria-label",
-                `Page ${destination}, current page`
-            );
-        } else {
-            button.setAttribute(
-                "aria-label",
-                /^\d+$/.test(String(text))
-                    ? `Go to page ${destination}`
-                    : `${text} page`
-            );
+        try {
+            const target = new URL(next.getAttribute("href"), location.href);
+            return target.origin === location.origin &&
+                target.pathname === location.pathname ? target.href : "";
+        } catch {
+            return "";
         }
-
-        button.addEventListener("click", () => {
-            if (button.disabled || state.currentPage === destination) {
-                return;
-            }
-
-            state.currentPage = destination;
-
-            // Filter and sort state remain unchanged.
-            renderWithLoading(() => {
-                // Move focus only after the new cards are visible.
-                ui.grid.focus({ preventScroll: true });
-                ui.grid.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start"
-                });
-            });
-        });
-
-        return button;
     }
 
-    function renderPagination(total) {
-        if (total === 0) {
-            ui.paginationWrap.hidden = true;
-            ui.pagination.replaceChildren();
-            ui.pageSummary.textContent = "";
-            state.currentPage = 1;
+    function updateBatchControls() {
+        if (!ui.paginationWrap) return;
 
-            return { start: 0, end: 0 };
-        }
+        const total = isCountry
+            ? Math.max(0, Number(app.dataset.total) || 0)
+            : visibleResults.length;
+        const first = isCountry ? countryPageStart + 1 : 1;
+        const shown = isCountry
+            ? countryPageStart + countryLoaded
+            : state.visibleCount;
 
-        const pageCount = Math.ceil(total / PAGE_SIZE);
+        ui.paginationWrap.hidden = total === 0;
+        ui.pageSummary.textContent = total
+            ? `Showing ${first}–${Math.min(shown, total)} of ${total} properties`
+            : "";
+        moreButton.hidden = isCountry
+            ? !countryNextURL
+            : shown >= total;
+        moreButton.disabled = isCountry && countryRequestInFlight;
+        moreButton.textContent = countryRequestInFlight
+            ? "Loading more properties..."
+            : countryLoadError
+                ? "Retry loading properties"
+                : "Load more properties";
+    }
 
-        // Prevent an invalid page after the result count changes.
-        state.currentPage = Math.max(
-            1,
-            Math.min(state.currentPage, pageCount)
+    function appendCSRBatch() {
+        if (fetching || ui.grid.hidden ||
+            state.visibleCount >= visibleResults.length) return;
+
+        const next = visibleResults.slice(
+            state.visibleCount,
+            state.visibleCount + PAGE_SIZE
         );
+        const fragment = document.createDocumentFragment();
+        next.forEach(property => fragment.append(propertyCard(property)));
+        ui.grid.append(fragment);
+        state.visibleCount += next.length;
+        updateBatchControls();
+        ui.status.textContent =
+            `Showing ${state.visibleCount} of ${visibleResults.length} matching properties`;
+    }
 
-        const start = (state.currentPage - 1) * PAGE_SIZE;
-        const end = Math.min(start + PAGE_SIZE, total);
+    async function appendCountryBatch() {
+        if (!countryNextURL || countryRequestInFlight) return;
+        countryRequestInFlight = true;
+        countryLoadError = false;
+        updateBatchControls();
 
-        ui.paginationWrap.hidden = false;
-        ui.pageSummary.textContent =
-            `Showing ${start + 1}–${end} of ${total} properties`;
-
-        const controls = document.createDocumentFragment();
-
-        if (pageCount > 1) {
-            controls.append(
-                pageButton(
-                    "Previous",
-                    state.currentPage - 1,
-                    state.currentPage === 1
-                )
-            );
-
-            for (let page = 1; page <= pageCount; page++) {
-                controls.append(
-                    pageButton(
-                        String(page),
-                        page,
-                        false,
-                        page === state.currentPage
-                    )
-                );
+        try {
+            const nextURL = countryNextURL;
+            const target = new URL(nextURL, location.href);
+            if (target.origin !== location.origin ||
+                target.pathname !== location.pathname) {
+                throw new Error("Unexpected country page URL");
             }
 
-            controls.append(
-                pageButton(
-                    "Next",
-                    state.currentPage + 1,
-                    state.currentPage === pageCount
-                )
+            const response = await fetch(target.href, {
+                headers: { Accept: "text/html" }
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const html = await response.text();
+            const parsed = new DOMParser().parseFromString(html, "text/html");
+            const pageApp = parsed.getElementById("country-results");
+            const pageGrid = pageApp?.querySelector("#refine-grid");
+            const expectedPage = Number(target.searchParams.get("page") || 1);
+
+            if (!pageApp || !pageGrid ||
+                pageApp.dataset.country !== country ||
+                pageApp.dataset.siteKey !== app.dataset.siteKey ||
+                Number(pageApp.dataset.page) !== expectedPage) {
+                throw new Error("Unexpected country page response");
+            }
+
+            const cards = [...pageGrid.querySelectorAll(":scope > article.refine-card")];
+            if (!cards.length || cards.length > PAGE_SIZE) {
+                throw new Error("Unexpected country batch size");
+            }
+
+            const seen = new Set(
+                [...ui.grid.querySelectorAll(".refine-favorite[data-property-id]")]
+                    .map(button => button.dataset.propertyId)
             );
+            for (const card of cards) {
+                const id = card.querySelector(".refine-favorite")?.dataset.propertyId;
+                if (!id || seen.has(id)) {
+                    throw new Error("Duplicate or invalid country property");
+                }
+                seen.add(id);
+            }
+
+            const nextPageURL = findNextCountryURL(
+                pageApp.querySelector("#refine-pagination")
+            );
+            if (nextPageURL === nextURL) {
+                throw new Error("Country pagination did not advance");
+            }
+
+            const fragment = document.createDocumentFragment();
+            cards.forEach(card => fragment.append(document.importNode(card, true)));
+            ui.grid.append(fragment);
+            initializeSSRCarousels(ui.grid);
+            ui.grid.querySelectorAll("button.refine-favorite")
+                .forEach(syncFavoriteButton);
+
+            countryLoaded += cards.length;
+            countryNextURL = nextPageURL;
+            ui.status.textContent = `Showing ${countryLoaded} country properties`;
+            ui.status.classList.remove("is-visible");
+        } catch (error) {
+            countryLoadError = true;
+            ui.status.textContent =
+                "Unable to load more properties. Select Retry loading properties.";
+            ui.status.classList.add("is-visible");
+        } finally {
+            countryRequestInFlight = false;
+            updateBatchControls();
         }
+    }
 
-        ui.pagination.replaceChildren(controls);
-
-        return { start, end };
+    function loadNextBatch() {
+        if (isCountry) void appendCountryBatch();
+        else appendCSRBatch();
     }
 
     function render() {
@@ -958,30 +1006,25 @@
         else if (ui.sort.value === "price_high") results.sort((a,b) => priceAmount(b) - priceAmount(a) || a.id.localeCompare(b.id));
         else results.sort((a,b) => Number(b.popularity_score) - Number(a.popularity_score) || a.id.localeCompare(b.id));
 
-        const { start, end } = renderPagination(results.length);
+        visibleResults = results;
+        state.visibleCount = Math.min(state.visibleCount, results.length);
 
         const fragment = document.createDocumentFragment();
-
         if (!results.length) {
-            fragment.append(
-                node(
-                    "p",
-                    "refine-empty",
-                    "No properties match your search or filters."
-                )
-            );
+            fragment.append(node(
+                "p", "refine-empty", "No properties match your search or filters."
+            ));
         } else {
-            results.slice(start, end).forEach(property => {
+            results.slice(0, state.visibleCount).forEach(property => {
                 fragment.append(propertyCard(property));
             });
         }
 
         ui.grid.replaceChildren(fragment);
-
+        updateBatchControls();
         ui.status.textContent = results.length
-            ? `Showing ${start + 1} through ${end} of ${results.length} matching properties`
+            ? `Showing 1 through ${state.visibleCount} of ${results.length} matching properties`
             : "No properties match your search or filters.";
-
         ui.status.classList.remove("is-visible");
     }
 
@@ -993,7 +1036,7 @@
         updatePills();
         const ticket = showLoading();
         fetching = true;
-        state.currentPage = 1;
+        state.visibleCount = PAGE_SIZE;
 
         const params = new URLSearchParams({
             search: state.search,
@@ -1150,7 +1193,7 @@
         if (mustFetch) {
             load();
         } else {
-            state.currentPage = 1;
+            state.visibleCount = PAGE_SIZE;
             renderWithLoading();
         }
     }
@@ -1271,7 +1314,7 @@
                 updatePills();
                 load();
             } else {
-                state.currentPage = 1;
+                state.visibleCount = PAGE_SIZE;
                 updateURL();
                 renderWithLoading();
             }
@@ -1305,27 +1348,13 @@
     ui.messageClose.addEventListener("click", () => ui.message.close());
     if (ui.sort) {
         ui.sort.addEventListener("change", () => {
-            state.currentPage = 1;
+            state.visibleCount = PAGE_SIZE;
             updateURL();
             renderWithLoading();
         });
     }
 
     if (isCountry) {
-        document.querySelectorAll("a.country-page-link").forEach(link => {
-            link.addEventListener("click", event => {
-                // Preserve browser-native modified clicks and new-tab behavior.
-                if (event.defaultPrevented || event.button !== 0 ||
-                    event.ctrlKey || event.metaKey || event.altKey || event.shiftKey ||
-                    link.hasAttribute("download") ||
-                    (link.target && link.target !== "_self") ||
-                    link.origin !== location.origin) return;
-
-                event.preventDefault();
-                navigateWithLoading(link.href);
-            });
-        });
-
         // Restore the original server HTML when returning from the back-forward cache.
         window.addEventListener("pageshow", event => {
             if (event.persisted && pendingNavigation) {
@@ -1376,13 +1405,36 @@
 
     // Enhance server-rendered photos and restore favorites.
     initializeSSRCarousels(ui.grid);
-
     ui.grid.querySelectorAll("button.refine-favorite")
         .forEach(syncFavoriteButton);
 
-    // Country routes retain their Go-rendered property cards.
-    if (!isCountry) {
-        load();
+    if (ui.paginationWrap && ui.pagination) {
+        if (isCountry) {
+            countryNextURL = findNextCountryURL(ui.pagination);
+            countryLoaded = ui.grid.querySelectorAll(
+                ":scope > article.refine-card"
+            ).length;
+        }
+
+        // Replace numbered links with an accessible incremental-load control.
+        ui.pagination.replaceChildren(moreButton);
+        moreButton.addEventListener("click", loadNextBatch);
+
+        if ("IntersectionObserver" in window) {
+            const observer = new IntersectionObserver(entries => {
+                if (entries.some(entry => entry.isIntersecting) &&
+                    !moreButton.hidden && !moreButton.disabled &&
+                    !countryLoadError) {
+                    loadNextBatch();
+                }
+            }, { rootMargin: "300px 0px" });
+            observer.observe(ui.paginationWrap);
+        }
+
+        if (isCountry) updateBatchControls();
     }
+
+    // Country routes retain their Go-rendered first batch.
+    if (!isCountry) load();
 })();
 
