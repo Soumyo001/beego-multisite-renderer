@@ -145,6 +145,7 @@
     let countryLoaded = 0;
     let countryRequestInFlight = false;
     let countryLoadError = false;
+    let csrBatchPending = false;
     const countryPageStart = isCountry
         ? (Math.max(1, Number(app.dataset.page) || 1) - 1) * PAGE_SIZE
         : 0;
@@ -156,6 +157,7 @@
     // Keep instant client operations visually consistent with real API loading.
     // This is a presentation-only minimum, not a server-side delay.
     const MIN_LOADING_MS = 180;
+    const MIN_BATCH_LOADING_MS = 400;
     let loadingSequence = 0;
     let fetching = false;
     let pendingNavigation = null;
@@ -210,6 +212,17 @@
     function waitForLoading(ticket) {
         const remaining = Math.max(0, MIN_LOADING_MS - (performance.now() - ticket.started));
         return new Promise(resolve => setTimeout(resolve, remaining));
+    }
+
+    // UI-L5: minimum visual duration, not scroll debouncing.
+    function waitForBatchMinimum(started) {
+        const remaining = Math.max(
+            0, MIN_BATCH_LOADING_MS - (performance.now() - started)
+        );
+
+        return new Promise(resolve =>
+            window.setTimeout(resolve, remaining)
+        );
     }
 
     function renderWithLoading(afterRender) {
@@ -884,35 +897,56 @@
         moreButton.hidden = isCountry
             ? !countryNextURL
             : shown >= total;
-        moreButton.disabled = isCountry && countryRequestInFlight;
-        moreButton.textContent = countryRequestInFlight
+        moreButton.disabled = countryRequestInFlight || csrBatchPending;
+        moreButton.textContent = countryRequestInFlight || csrBatchPending
             ? "Loading more properties..."
             : countryLoadError
                 ? "Retry loading properties"
                 : "Load more properties";
     }
 
-    function appendCSRBatch() {
-        if (fetching || ui.grid.hidden ||
+    async function appendCSRBatch() {
+        if (csrBatchPending || fetching || ui.grid.hidden ||
             state.visibleCount >= visibleResults.length) return;
 
-        const next = visibleResults.slice(
-            state.visibleCount,
-            state.visibleCount + PAGE_SIZE
-        );
-        const fragment = document.createDocumentFragment();
-        next.forEach(property => fragment.append(propertyCard(property)));
-        ui.grid.append(fragment);
-        state.visibleCount += next.length;
+        csrBatchPending = true;
+        const started = performance.now();
+        const resultsForBatch = visibleResults;
         updateBatchControls();
-        ui.status.textContent =
-            `Showing ${state.visibleCount} of ${visibleResults.length} matching properties`;
+
+        try {
+            await waitForBatchMinimum(started);
+
+            // Do not append stale results if filters or search changed.
+            if (fetching || ui.grid.hidden ||
+                resultsForBatch !== visibleResults) return;
+
+            const next = resultsForBatch.slice(
+                state.visibleCount,
+                state.visibleCount + PAGE_SIZE
+            );
+
+            const fragment = document.createDocumentFragment();
+            next.forEach(property =>
+                fragment.append(propertyCard(property))
+            );
+
+            ui.grid.append(fragment);
+            state.visibleCount += next.length;
+
+            ui.status.textContent =
+                `Showing ${state.visibleCount} of ${resultsForBatch.length} matching properties`;
+        } finally {
+            csrBatchPending = false;
+            updateBatchControls();
+        }
     }
 
     async function appendCountryBatch() {
         if (!countryNextURL || countryRequestInFlight) return;
         countryRequestInFlight = true;
         countryLoadError = false;
+        const started = performance.now();
         updateBatchControls();
 
         try {
@@ -964,6 +998,8 @@
             if (nextPageURL === nextURL) {
                 throw new Error("Country pagination did not advance");
             }
+
+            await waitForBatchMinimum(started);
 
             const fragment = document.createDocumentFragment();
             cards.forEach(card => fragment.append(document.importNode(card, true)));
