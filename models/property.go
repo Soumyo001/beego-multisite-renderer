@@ -1,5 +1,7 @@
 package models
 
+import "database/sql"
+
 // PropertyLocation is the public API representation of a location.
 // ORM location records are shared by multiple properties.
 type PropertyLocation struct {
@@ -66,7 +68,11 @@ type PropertyRecord struct {
 	BookingURL      string `orm:"column(booking_url);type(text)"`
 	PopularityScore int
 	EcoFriendly     bool
-	ImageJSON       string `orm:"column(images);type(jsonb)"`
+	ImageJSON       string          `orm:"column(images);type(jsonb)"`
+	Details         sql.NullString  `orm:"column(details);type(text);null"`
+	Bedrooms        sql.NullInt64   `orm:"column(bedrooms);null"`
+	Bathrooms       sql.NullFloat64 `orm:"column(bathrooms);digits(3);decimals(1);null"`
+	PetFriendly     sql.NullBool    `orm:"column(pet_friendly);null"`
 }
 
 func (*PropertyRecord) TableName() string { return "properties" }

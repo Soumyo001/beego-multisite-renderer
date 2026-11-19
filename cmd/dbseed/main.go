@@ -63,6 +63,11 @@ func main() {
 		false,
 		"preview image updates for existing properties",
 	)
+	syncDetails := flag.Bool(
+		"sync-details",
+		false,
+		"preview property-details backfill for existing properties",
+	)
 	apply := flag.Bool(
 		"apply",
 		false,
@@ -70,13 +75,21 @@ func main() {
 	)
 	flag.Parse()
 
-	if *apply && !*syncImages {
-		log.Fatal("-apply requires -sync-images")
+	if *apply && !*syncImages && !*syncDetails {
+		log.Fatal(
+			"-apply requires -sync-images or -sync-details",
+		)
 	}
 
-	if *verifyImages && *syncImages {
+	if *syncImages && *syncDetails {
 		log.Fatal(
-			"-verify-images cannot be combined with -sync-images",
+			"-sync-images and -sync-details are mutually exclusive",
+		)
+	}
+
+	if *verifyImages && (*syncImages || *syncDetails) {
+		log.Fatal(
+			"-verify-images cannot be combined with sync modes",
 		)
 	}
 
@@ -148,6 +161,20 @@ func main() {
 		)
 	}
 
+	// PD-1B.2: details backfill is separate from normal seeding.
+	// Without -apply, this operation only previews changes.
+	if *syncDetails {
+		if err := syncPropertyDetails(
+			properties, *apply,
+		); err != nil {
+			log.Fatalf(
+				"property-details backfill failed; no changes committed: %v",
+				err,
+			)
+		}
+		return
+	}
+
 	var stats seedStats
 
 	err = orm.NewOrm().DoTx(
@@ -205,6 +232,14 @@ func main() {
 					)
 				}
 
+				detailsSeed, err := propertyDetailsForSeed(p)
+				if err != nil {
+					return fmt.Errorf(
+						"prepare details for %s: %w",
+						p.ID, err,
+					)
+				}
+
 				record := &models.PropertyRecord{
 					SiteKey:         siteKey,
 					Slug:            p.Slug,
@@ -224,6 +259,10 @@ func main() {
 					PopularityScore: p.PopularityScore,
 					EcoFriendly:     p.EcoFriendly,
 					ImageJSON:       string(images),
+					Details:         detailsSeed.Details,
+					Bedrooms:        detailsSeed.Bedrooms,
+					Bathrooms:       detailsSeed.Bathrooms,
+					PetFriendly:     detailsSeed.PetFriendly,
 				}
 
 				isNew, propertyID, err := tx.ReadOrCreate(
