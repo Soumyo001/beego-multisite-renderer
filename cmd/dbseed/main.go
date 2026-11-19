@@ -124,6 +124,30 @@ func main() {
 		return
 	}
 
+	// LD-1A: Add the illustrative demonstration properties
+	// only during normal database seeding.
+	//
+	// The existing -verify-images and -sync-images modes
+	// have already returned before reaching this point.
+	demos, err := additionalDemoSeedProperties(properties)
+	if err != nil {
+		log.Fatalf(
+			"prepare additional demo properties: %v",
+			err,
+		)
+	}
+
+	properties = append(properties, demos...)
+
+	// Validate the complete 48-property dataset before
+	// starting the PostgreSQL transaction.
+	if err := validateSeedData(properties); err != nil {
+		log.Fatalf(
+			"invalid expanded seed data: %v",
+			err,
+		)
+	}
+
 	var stats seedStats
 
 	err = orm.NewOrm().DoTx(

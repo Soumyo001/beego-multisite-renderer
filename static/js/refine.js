@@ -157,7 +157,7 @@
     // Keep instant client operations visually consistent with real API loading.
     // This is a presentation-only minimum, not a server-side delay.
     const MIN_LOADING_MS = 180;
-    const MIN_BATCH_LOADING_MS = 400;
+    const MIN_BATCH_LOADING_MS = 900;
     let loadingSequence = 0;
     let fetching = false;
     let pendingNavigation = null;
@@ -1460,7 +1460,7 @@
                     !countryLoadError) {
                     loadNextBatch();
                 }
-            }, { rootMargin: "300px 0px" });
+            }, { rootMargin: "10px 0px" });
             observer.observe(ui.paginationWrap);
         }
 

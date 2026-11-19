@@ -52,3 +52,116 @@ func TestRejectInvalidSeedSlug(t *testing.T) {
 		t.Fatal("expected invalid slug to be rejected")
 	}
 }
+
+func TestAdditionalDemoSeedProperties(t *testing.T) {
+	// First build the original five-image gallery dataset.
+	original, err := gallerySeedProperties()
+	if err != nil {
+		t.Fatalf("prepare original gallery: %v", err)
+	}
+
+	if len(original) != 15 {
+		t.Fatalf(
+			"expected 15 original properties, got %d",
+			len(original),
+		)
+	}
+
+	demos, err := additionalDemoSeedProperties(original)
+	if err != nil {
+		t.Fatalf("prepare demo properties: %v", err)
+	}
+
+	if len(demos) != 33 {
+		t.Fatalf(
+			"expected 33 demo properties, got %d",
+			len(demos),
+		)
+	}
+
+	// Validate original and demo properties together.
+	combined := append(
+		append([]seedProperty(nil), original...),
+		demos...,
+	)
+
+	if len(combined) != 48 {
+		t.Fatalf(
+			"expected 48 total properties, got %d",
+			len(combined),
+		)
+	}
+
+	if err := validateSeedData(combined); err != nil {
+		t.Fatalf(
+			"expanded seed dataset is invalid: %v",
+			err,
+		)
+	}
+
+	if demos[0].ID != "prop-016" ||
+		demos[len(demos)-1].ID != "prop-048" {
+		t.Fatal("unexpected demo property ID range")
+	}
+
+	// All demonstration properties must belong to USA,
+	// carry five images, and remain clearly identified.
+	locations := make(map[models.PropertyLocation]bool)
+
+	for _, property := range combined {
+		locations[property.Location] = true
+	}
+
+	if len(locations) != 8 {
+		t.Fatalf(
+			"expected 8 original locations, got %d",
+			len(locations),
+		)
+	}
+
+	for _, property := range demos {
+		if property.Location.Country != "USA" {
+			t.Errorf(
+				"%s has unexpected country %q",
+				property.ID,
+				property.Location.Country,
+			)
+		}
+
+		if len(property.Images) != 5 {
+			t.Errorf(
+				"%s has %d images, expected 5",
+				property.ID,
+				len(property.Images),
+			)
+		}
+
+		if property.ProviderName != "Demo Listing" {
+			t.Errorf(
+				"%s has unexpected provider %q",
+				property.ID,
+				property.ProviderName,
+			)
+		}
+
+		if property.BookingURL !=
+			"https://example.com/demo/"+property.ID {
+			t.Errorf(
+				"%s has unexpected demo booking URL",
+				property.ID,
+			)
+		}
+	}
+
+	// Confirm the new properties do not share image slice
+	// storage with the original gallery properties.
+	firstOriginalImage := original[0].Images[0]
+
+	demos[0].Images[0] = "temporary-test-value"
+
+	if original[0].Images[0] != firstOriginalImage {
+		t.Fatal(
+			"demo property changed original image data",
+		)
+	}
+}

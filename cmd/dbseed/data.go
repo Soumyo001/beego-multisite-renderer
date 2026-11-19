@@ -337,3 +337,107 @@ func gallerySeedProperties() ([]seedProperty, error) {
 
 	return result, nil
 }
+
+// additionalDemoSeedProperties creates 33 illustrative listings
+// using the existing, validated five-image gallery properties.
+//
+// The original 15 properties are not modified. All demo listings
+// retain valid locations, amenities, availability and five photos.
+//
+// These entries are assessment data, not real bookable properties.
+func additionalDemoSeedProperties(
+	originalGallery []seedProperty,
+) ([]seedProperty, error) {
+	if len(originalGallery) != 15 {
+		return nil, fmt.Errorf(
+			"expected 15 original gallery properties, got %d",
+			len(originalGallery),
+		)
+	}
+
+	// Names are ordered to match the corresponding source
+	// property's location, repeating the 15-location pattern.
+	names := []string{
+		"Midtown Garden Suites",
+		"Waikiki Ocean View Villas",
+		"Desert Lantern Resort",
+		"Waikiki Palm Courtyard",
+		"Miami Seabreeze Retreat",
+		"Pacific Terrace Suites",
+		"Beverly Grove Hideaway",
+		"Waikiki Island Nook",
+		"Orlando Magnolia Residence",
+		"Honolulu Sunset Stay",
+		"Coronado Sandstone Inn",
+		"Waikiki Morning Villas",
+		"Nob Hill Skyline Suites",
+		"Waikiki Moonlight Retreat",
+		"Royal Waikiki Garden Suites",
+		"Midtown Art Deco Suites",
+		"Waikiki Coral Grove",
+		"Las Vegas Sunset Courtyard",
+		"Waikiki Beach Garden Stay",
+		"Miami Palm Shore Retreat",
+		"Honolulu Bluewater Villas",
+		"Beverly Hills Canyon Residence",
+		"Waikiki Lagoon Loft",
+		"Orlando Lakeside Suites",
+		"Honolulu Oceanfront Nest",
+		"Coronado Coastal Cottage",
+		"Waikiki Island Breeze Haven",
+		"Nob Hill Bayview Retreat",
+		"Waikiki Sunset Terrace",
+		"Waikiki Royal Palm House",
+		"Midtown Central Residence",
+		"Waikiki Morning Breeze Suites",
+		"Desert Mirage Poolside Stay",
+	}
+
+	demos := make([]seedProperty, 0, len(names))
+
+	for i, name := range names {
+		source := originalGallery[i%len(originalGallery)]
+
+		if len(source.Images) != 5 {
+			return nil, fmt.Errorf(
+				"%s: expected five source gallery images",
+				source.ID,
+			)
+		}
+
+		// Copy the source's valid location, availability,
+		// property type, capacity and other seed fields.
+		demo := source
+
+		// Allocate stable, nonconflicting property identities.
+		demo.ID = fmt.Sprintf("prop-%03d", i+16)
+		demo.Name = name + " (Demo)"
+		demo.Slug = "demo-" + strings.ToLower(
+			strings.ReplaceAll(name, " ", "-"),
+		)
+
+		// Explicitly identify these as illustrative listings.
+		// The existing booking URL validator will not offer
+		// external booking for this demonstration provider.
+		demo.ProviderName = "Demo Listing"
+		demo.BookingURL = "https://example.com/demo/" + demo.ID
+
+		// Illustrative assessment metrics.
+		demo.Rating = 8.0 + float64(i%11)/10
+		demo.ReviewCount = 80 + i*13
+		demo.PopularityScore = demo.ReviewCount
+
+		// Clone slices so original gallery properties
+		// cannot be accidentally modified through demos.
+		demo.Images = append(
+			[]string(nil), source.Images...,
+		)
+		demo.Amenities = append(
+			[]string(nil), source.Amenities...,
+		)
+
+		demos = append(demos, demo)
+	}
+
+	return demos, nil
+}
