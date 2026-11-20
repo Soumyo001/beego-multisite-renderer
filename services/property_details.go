@@ -58,9 +58,7 @@ func validPropertyDetailsIdentity(slug, propertyID string) bool {
 // found=false represents a missing property or an invalid
 // slug/ID combination. Unexpected database problems are
 // returned as errors.
-func (s *DatabasePropertySearchService) FindDetails(
-	siteDirectory, slug, propertyID string,
-) (PropertyDetails, bool, error) {
+func (s *DatabasePropertySearchService) FindDetails(siteDirectory, slug, propertyID string) (PropertyDetails, bool, error) {
 	if strings.TrimSpace(siteDirectory) == "" {
 		return PropertyDetails{}, false,
 			fmt.Errorf("site directory must not be empty")
