@@ -63,8 +63,6 @@
         calendarHint: $("refine-calendar-hint"), calendarMonths: $("refine-calendar-months"),
         monthPrev: $("refine-month-prev"), monthNext: $("refine-month-next"),
         calendarClear: $("refine-calendar-clear"), calendarApply: $("refine-calendar-apply"),
-        message: $("refine-dialog"), messageTitle: $("refine-dialog-title"),
-        messageText: $("refine-dialog-message"), messageClose: $("refine-dialog-close")
     };
 
     const state = {
@@ -823,11 +821,6 @@
             return url.href;
         } catch { return ""; }
     }
-    function showMessage(title, message) {
-        ui.messageTitle.textContent = title;
-        ui.messageText.textContent = message;
-        ui.message.showModal();
-    }
     function propertyDetailsURL(property) {
         if (typeof property.slug !== "string" ||
             typeof property.id !== "string" ||
@@ -909,14 +902,20 @@
         const loc = property.location || {};
         body.append(node("p", "refine-card-location", [loc.city, loc.area, loc.state].filter(Boolean).join(" › ")));
         const bottom = node("div", "refine-card-bottom");
-        const view = node("button", "refine-availability", "View Availability");
-        view.type = "button";
-        view.addEventListener("click", () => {
-            const dest = bookingURL(property);
-            if (dest) location.assign(dest);
-            else showMessage(property.name, "Live booking information is not connected for this listing. Check with the provider.");
-        });
-        bottom.append(node("span", "refine-provider", property.provider_name || ""), view);
+        bottom.append(node("span", "refine-provider", property.provider_name || ""));
+
+        const providerURL = bookingURL(property);
+
+        if (providerURL) {
+            const link = node("a", "refine-availability", "View Availability");
+            link.href = providerURL;
+            link.rel = "noopener noreferrer";
+            bottom.append(link);
+        } else {
+            bottom.append(
+                node("span", "country-unavailable", "Provider link unavailable")
+            );
+        }
         body.append(bottom);
         card.append(picture, body);
         return card;
@@ -1441,7 +1440,6 @@
     ui.monthNext.addEventListener("click", () => { visibleMonth.setMonth(visibleMonth.getMonth()+1); paintCalendar(); });
     ui.calendarClear.addEventListener("click", () => { chosenStart=""; chosenEnd=""; paintCalendar(); });
     ui.calendarApply.addEventListener("click", acceptDates);
-    ui.messageClose.addEventListener("click", () => ui.message.close());
     if (ui.sort) {
         ui.sort.addEventListener("change", () => {
             state.visibleCount = PAGE_SIZE;

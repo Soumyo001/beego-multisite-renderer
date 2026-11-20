@@ -874,3 +874,23 @@ body.refine-route .refine-details-link:focus-visible {
     outline: 2px solid #3687ab;
     outline-offset: 2px;
 }
+/* Validated provider links on CSR and SSR listing cards. */
+body.refine-route a.refine-availability {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    text-decoration: none;
+}
+
+body.refine-route a.refine-availability:hover {
+    background: #e56d00;
+    color: #fff;
+}
+
+/* Missing provider URLs are informative, not clickable. */
+body.refine-route .country-unavailable {
+    color: #60757a;
+    font: 12px/1.4 Arial, sans-serif;
+    cursor: default;
+}

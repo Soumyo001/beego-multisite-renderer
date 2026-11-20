@@ -385,12 +385,6 @@
         </div>
     </dialog>
 
-    <dialog id="refine-dialog" class="refine-message-dialog" aria-labelledby="refine-dialog-title">
-        <h2 id="refine-dialog-title"></h2>
-        <p id="refine-dialog-message"></p>
-        <button type="button" id="refine-dialog-close">Close</button>
-    </dialog>
-
     {{if .GlobalJS}}<script src="{{.GlobalJS}}" defer></script>{{end}}
     <script src="/static/js/refine.js" defer></script>
     <script src="/static/js/property_search_popup.js" defer></script>
