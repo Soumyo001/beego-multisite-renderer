@@ -9,18 +9,14 @@
     const calendar = document.getElementById("pd-calendar-dialog");
     const months = document.getElementById("pd-calendar-months");
     const prompt = document.getElementById("pd-calendar-prompt");
-    const summary = document.getElementById("pd-calendar-summary");
     const done = document.getElementById("pd-calendar-done");
-    const doneLabel = document.getElementById("pd-calendar-done-label");
-    const nightsLabel = document.getElementById("pd-calendar-nights");
     const prev = document.getElementById("pd-calendar-prev");
     const next = document.getElementById("pd-calendar-next");
     const openFull = document.getElementById("pd-calendar-open");
 
     if (!checkInButton || !checkOutButton || !checkInText ||
         !checkOutText || !status || !calendar || !months ||
-        !prompt || !summary || !done || !doneLabel || !nightsLabel ||
-        !prev || !next || !openFull) return;
+        !prompt || !done || !prev || !next || !openFull) return;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -54,15 +50,6 @@
         });
     }
 
-    function nightCount(start, end) {
-        const a = fromISO(start);
-        const b = fromISO(end);
-        if (!a || !b) return 0;
-        const first = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
-        const last = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
-        return Math.round((last - first) / 86400000);
-    }
-
     function renderSelection() {
         checkInText.textContent = selectedStart ? displayDate(selectedStart) : "Choose date";
         checkOutText.textContent = selectedEnd ? displayDate(selectedEnd) : "Choose date";
@@ -72,25 +59,15 @@
     }
 
     function renderFooter() {
-        const complete = Boolean(draftStart && draftEnd);
-        const partial = Boolean(draftStart && !draftEnd);
-        const nights = complete ? nightCount(draftStart, draftEnd) : 0;
-
-        prompt.textContent = partial ? "Choose check-out" :
-            complete ? "Selected stay" : "Choose check-in and check-out";
-        summary.textContent = complete
-            ? `${displayDate(draftStart, true)} – ${displayDate(draftEnd, true)}`
-            : partial ? `${displayDate(draftStart, true)} – Choose check-out`
-                : "No dates selected";
-        done.disabled = partial;
-        doneLabel.textContent = draftStart ? "Continue" : "Continue without dates";
-        nightsLabel.textContent = complete
-            ? `${nights} night${nights === 1 ? "" : "s"}` : "";
+        prompt.textContent = draftStart && draftEnd
+            ? `${displayDate(draftStart)} – ${displayDate(draftEnd)}`
+            : draftStart ? "Choose checkout" : "Choose check-in and checkout";
+        done.disabled = Boolean(draftStart && !draftEnd);
     }
 
     function renderCalendar() {
         months.replaceChildren();
-        const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+        const days = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
         for (let offset = 0; offset < 2; offset++) {
             const base = new Date(firstMonth.getFullYear(), firstMonth.getMonth() + offset, 1);
@@ -196,7 +173,6 @@
         renderSelection();
         calendar.close();
     });
-    document.getElementById("pd-calendar-cancel").addEventListener("click", () => calendar.close());
     document.getElementById("pd-calendar-close").addEventListener("click", () => calendar.close());
     calendar.addEventListener("close", () => {
         if (openingButton) {

@@ -134,30 +134,27 @@
 
           <dialog id="pd-calendar-dialog" class="pd-calendar-dialog"
                   aria-labelledby="pd-calendar-title">
-            <header class="pd-calendar-heading">
-              <h2 id="pd-calendar-title">When do you want to travel?</h2>
-              <button type="button" id="pd-calendar-close" aria-label="Close calendar">×</button>
-            </header>
-            <div class="pd-calendar-body">
-              <div class="pd-calendar-navigation">
-                <button type="button" id="pd-calendar-prev" aria-label="Previous month">‹</button>
-                <span id="pd-calendar-prompt" aria-live="polite">Choose check-in and check-out</span>
-                <button type="button" id="pd-calendar-next" aria-label="Next month">›</button>
-              </div>
-              <div class="pd-calendar-months" id="pd-calendar-months"></div>
-              <p class="pd-calendar-note">Dates shown do not represent confirmed availability.</p>
+            <div class="pd-calendar-heading">
+              <h2 id="pd-calendar-title">Select your dates</h2>
+              <button type="button" id="pd-calendar-close"
+                      aria-label="Close calendar">×</button>
             </div>
-            <footer class="pd-calendar-footer">
-              <p id="pd-calendar-summary" aria-live="polite">No dates selected</p>
-              <div class="pd-calendar-footer-actions">
-                <button type="button" id="pd-calendar-clear">Clear</button>
-                <button type="button" id="pd-calendar-cancel">Cancel</button>
-                <button type="button" id="pd-calendar-done">
-                  <span id="pd-calendar-done-label">Continue without dates</span>
-                  <small id="pd-calendar-nights"></small>
-                </button>
+            <div class="pd-calendar-content">
+              <div class="pd-calendar-toolbar">
+                <button type="button" id="pd-calendar-prev"
+                        aria-label="Previous month">‹</button>
+                <strong id="pd-calendar-prompt" aria-live="polite">
+                  Choose check-in and checkout
+                </strong>
+                <button type="button" id="pd-calendar-next"
+                        aria-label="Next month">›</button>
               </div>
-            </footer>
+              <div id="pd-calendar-months" class="pd-calendar-months"></div>
+            </div>
+            <div class="pd-calendar-footer">
+              <button type="button" id="pd-calendar-clear">Clear</button>
+              <button type="button" id="pd-calendar-done">Apply dates</button>
+            </div>
           </dialog>
         </aside>
       </div>
