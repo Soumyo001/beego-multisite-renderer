@@ -416,11 +416,10 @@ func additionalDemoSeedProperties(
 			strings.ReplaceAll(name, " ", "-"),
 		)
 
-		// Explicitly identify these as illustrative listings.
-		// The existing booking URL validator will not offer
-		// external booking for this demonstration provider.
-		demo.ProviderName = "Demo Listing"
-		demo.BookingURL = "https://example.com/demo/" + demo.ID
+		// Point to the original location-matched hotel's real provider page.
+		// The demo remains illustrative and is NOT that hotel.
+		demo.ProviderName = source.ProviderName
+		demo.BookingURL = source.BookingURL
 
 		// Illustrative assessment metrics.
 		demo.Rating = 8.0 + float64(i%11)/10

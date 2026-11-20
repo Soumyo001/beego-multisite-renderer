@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"sparrow-ssr/models"
@@ -119,7 +120,7 @@ func TestAdditionalDemoSeedProperties(t *testing.T) {
 		)
 	}
 
-	for _, property := range demos {
+	for i, property := range demos {
 		if property.Location.Country != "USA" {
 			t.Errorf(
 				"%s has unexpected country %q",
@@ -136,20 +137,15 @@ func TestAdditionalDemoSeedProperties(t *testing.T) {
 			)
 		}
 
-		if property.ProviderName != "Demo Listing" {
-			t.Errorf(
-				"%s has unexpected provider %q",
-				property.ID,
-				property.ProviderName,
-			)
+		// Each demo links to a real hotel from the same location.
+		source := original[i%len(original)]
+		if property.ProviderName != source.ProviderName ||
+			property.BookingURL != source.BookingURL {
+			t.Errorf("%s: alternative provider differs from %s", property.ID, source.ID)
 		}
-
-		if property.BookingURL !=
-			"https://example.com/demo/"+property.ID {
-			t.Errorf(
-				"%s has unexpected demo booking URL",
-				property.ID,
-			)
+		if !strings.HasSuffix(property.Name, " (Demo)") ||
+			!strings.HasPrefix(property.Slug, "demo-") {
+			t.Errorf("%s lost its demo identity", property.ID)
 		}
 	}
 

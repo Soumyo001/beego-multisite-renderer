@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strings"
 
 	"sparrow-ssr/models"
 	"sparrow-ssr/services"
@@ -180,6 +181,8 @@ func (c *PropertyDetailsController) Get() {
 	c.Data["WidgetHTML"] = template.HTML(content.Header.WidgetCode)
 
 	c.Data["Property"] = details.Property
+	c.Data["IsDemo"] = strings.HasPrefix(details.Property.Slug, "demo-") &&
+		strings.HasSuffix(details.Property.Name, " (Demo)")
 	c.Data["Photos"] = safeGalleryPhotos(details.Property.Images)
 	c.Data["HasDetails"] = details.Details.Valid
 	c.Data["Details"] = details.Details.String

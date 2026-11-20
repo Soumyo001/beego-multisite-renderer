@@ -232,7 +232,7 @@
                             <a class="refine-availability country-availability"
                                href="{{.BookingURL}}"
                                rel="noopener noreferrer">
-                                View Availability
+                                {{if .IsDemo}}View Other Hotel{{else}}View Availability{{end}}
                             </a>
                             {{else}}
                             <span class="country-unavailable">

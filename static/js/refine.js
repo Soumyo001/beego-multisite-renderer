@@ -907,7 +907,10 @@
         const providerURL = bookingURL(property);
 
         if (providerURL) {
-            const link = node("a", "refine-availability", "View Availability");
+            const isDemo = property.slug?.startsWith("demo-") &&
+                property.name?.endsWith(" (Demo)");
+            const link = node("a", "refine-availability",
+                isDemo ? "View Other Hotel" : "View Availability");
             link.href = providerURL;
             link.rel = "noopener noreferrer";
             bottom.append(link);

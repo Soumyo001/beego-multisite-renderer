@@ -39,6 +39,7 @@ type countryCard struct {
 	Amenities  string
 	Provider   string
 	BookingURL string
+	IsDemo     bool
 	Rating     float64
 	Reviews    int
 	Eco        bool
@@ -345,6 +346,8 @@ func (c *CountryController) Get() {
 				detailParts, " · ",
 			),
 			Provider: p.ProviderName,
+			IsDemo: strings.HasPrefix(p.Slug, "demo-") &&
+				strings.HasSuffix(p.Name, " (Demo)"),
 			BookingURL: safeBooking(
 				p.ProviderName, p.BookingURL,
 			),

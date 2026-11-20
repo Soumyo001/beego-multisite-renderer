@@ -126,8 +126,12 @@
 
           {{if .BookingURL}}
             <a id="pd-check-provider" href="{{.BookingURL}}"
-               class="pd-action" rel="noopener noreferrer">Check Availability</a>
-            <p class="pd-redirect-note">You will be redirected to the provider to confirm dates, availability and final pricing. Selected dates are not sent automatically.</p>
+               class="pd-action" rel="noopener noreferrer">{{if .IsDemo}}View Other Hotel{{else}}Check Availability{{end}}</a>
+            {{if .IsDemo}}
+              <p class="pd-redirect-note">This is an illustrative demo listing. The link opens a different, real hotel in the same destination. The displayed photos, details, and prices do not describe that hotel.</p>
+            {{else}}
+              <p class="pd-redirect-note">You will be redirected to the provider to confirm dates, availability and final pricing. Selected dates are not sent automatically.</p>
+            {{end}}
           {{else}}
             <p class="pd-booking-unavailable">Live booking information is not connected for this demonstration listing.</p>
           {{end}}

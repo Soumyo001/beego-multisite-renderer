@@ -64,33 +64,27 @@ func main() {
 		"preview image updates for existing properties",
 	)
 	syncDetails := flag.Bool(
-		"sync-details",
-		false,
-		"preview property-details backfill for existing properties",
+		"sync-details", false, "preview property-details backfill",
+	)
+	syncLinks := flag.Bool(
+		"sync-links", false, "preview demo alternative-provider links",
 	)
 	apply := flag.Bool(
-		"apply",
-		false,
-		"commit image updates (requires -sync-images)",
+		"apply", false, "commit the selected sync mode",
 	)
 	flag.Parse()
 
-	if *apply && !*syncImages && !*syncDetails {
-		log.Fatal(
-			"-apply requires -sync-images or -sync-details",
-		)
+	modes := 0
+	for _, enabled := range []bool{*syncImages, *syncDetails, *syncLinks} {
+		if enabled {
+			modes++
+		}
 	}
-
-	if *syncImages && *syncDetails {
-		log.Fatal(
-			"-sync-images and -sync-details are mutually exclusive",
-		)
+	if *apply && modes != 1 {
+		log.Fatal("-apply requires exactly one sync mode")
 	}
-
-	if *verifyImages && (*syncImages || *syncDetails) {
-		log.Fatal(
-			"-verify-images cannot be combined with sync modes",
-		)
+	if modes > 1 || (*verifyImages && modes > 0) {
+		log.Fatal("sync modes and -verify-images are mutually exclusive")
 	}
 
 	properties, err := gallerySeedProperties()
@@ -159,6 +153,14 @@ func main() {
 			"invalid expanded seed data: %v",
 			err,
 		)
+	}
+
+	// Provider-link synchronization is a separate dry-run-first operation.
+	if *syncLinks {
+		if err := syncDemoProviderLinks(demos, *apply); err != nil {
+			log.Fatalf("demo-link synchronization failed: %v", err)
+		}
+		return
 	}
 
 	// PD-1B.2: details backfill is separate from normal seeding.
@@ -323,6 +325,96 @@ func main() {
 	log.Println(
 		"Existing rows were preserved; rerunning does not overwrite modified property data.",
 	)
+}
+
+// syncDemoProviderLinks updates only the two provider columns of the 33
+// pre-existing, publisher-scoped demo rows. Dry-run is the default.
+func syncDemoProviderLinks(demos []seedProperty, apply bool) error {
+	if len(demos) != 33 {
+		return fmt.Errorf("expected 33 demo properties, got %d", len(demos))
+	}
+
+	db, err := orm.GetDB("default")
+	if err != nil {
+		return fmt.Errorf("get database: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin redirect transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var total int
+	if err := tx.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM public.properties WHERE site_key = $1`, siteKey,
+	).Scan(&total); err != nil {
+		return fmt.Errorf("count publisher properties: %w", err)
+	}
+	if total != 48 {
+		return fmt.Errorf("publisher has %d properties; expected 48; refusing update", total)
+	}
+
+	pending, unchanged := 0, 0
+	for _, p := range demos {
+		if !strings.HasPrefix(p.Slug, "demo-") ||
+			!strings.HasSuffix(p.Name, " (Demo)") {
+			return fmt.Errorf("refusing non-demo identity %s", p.ID)
+		}
+
+		query := `SELECT slug, name, provider_name, booking_url
+			FROM public.properties WHERE site_key = $1 AND property_id = $2`
+		if apply {
+			query += " FOR UPDATE"
+		}
+		var slug, name, provider, booking string
+		if err := tx.QueryRowContext(ctx, query, siteKey, p.ID).Scan(
+			&slug, &name, &provider, &booking,
+		); err != nil {
+			return fmt.Errorf("read demo %s: %w", p.ID, err)
+		}
+		if slug != p.Slug || name != p.Name {
+			return fmt.Errorf("demo %s changed slug or name; refusing update", p.ID)
+		}
+		if provider == p.ProviderName && booking == p.BookingURL {
+			unchanged++
+			continue
+		}
+		placeholder := "https://example.com/demo/" + p.ID
+		if provider != "Demo Listing" || booking != placeholder {
+			return fmt.Errorf("demo %s has a custom provider/link; refusing overwrite", p.ID)
+		}
+		pending++
+		if !apply {
+			continue
+		}
+		result, err := tx.ExecContext(ctx, `
+			UPDATE public.properties
+			SET provider_name = $1, booking_url = $2
+			WHERE site_key = $3 AND property_id = $4
+			  AND slug = $5 AND name = $6
+			  AND provider_name = 'Demo Listing'
+			  AND booking_url = $7`,
+			p.ProviderName, p.BookingURL, siteKey, p.ID, p.Slug, p.Name, placeholder,
+		)
+		if err != nil {
+			return fmt.Errorf("update demo %s: %w", p.ID, err)
+		}
+		rows, err := result.RowsAffected()
+		if err != nil || rows != 1 {
+			return fmt.Errorf("update demo %s affected %d rows: %v", p.ID, rows, err)
+		}
+	}
+	if !apply {
+		log.Printf("DRY RUN: %d demo links pending, %d already matched; no changes made", pending, unchanged)
+		return nil
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit demo links: %w", err)
+	}
+	log.Printf("COMMITTED: %d demo links updated, %d already matched", pending, unchanged)
+	return nil
 }
 
 func validateSeedData(properties []seedProperty) error {
