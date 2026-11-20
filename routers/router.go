@@ -37,6 +37,14 @@ func Register(
 		"get:Get",
 	)
 
+	// Property details must be registered before
+	// the publisher's catch-all page route.
+	beego.Router(
+		"/property/:slug/:propertyID",
+		&controllers.PropertyDetailsController{},
+		"get:Get",
+	)
+
 	// Preserve the existing publisher page routing.
 	beego.Router("/*", &controllers.PageController{})
 }
@@ -53,6 +61,12 @@ func RegisterPropertyAPI(
 		search,
 	)
 	controllers.SetCountrySearchDependencies(search)
+
+	// The production database service implements both interfaces.
+	// Existing listing-only test fixtures remain compatible.
+	if reader, ok := search.(services.PropertyDetailsReader); ok {
+		controllers.SetPropertyDetailsDependencies(reader, search)
+	}
 
 	beego.Router(
 		"/api/properties",

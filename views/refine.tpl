@@ -152,7 +152,8 @@
 
                 {{if .IsCountry}}
                 {{range .Cards}}
-                <article class="refine-card">
+                <article class="refine-card"
+                        data-details-url="{{.DetailsURL}}">
                     <div class="refine-card-picture">
                         {{if .Photos}}
                         <img class="refine-card-image"
@@ -208,7 +209,10 @@
                         </div>
 
                         <h2 class="refine-card-title">
-                            {{.Name}}
+                            <a class="refine-details-link"
+                               href="{{.DetailsURL}}">
+                                {{.Name}}
+                            </a>
                         </h2>
 
                         <p class="refine-card-details">

@@ -30,6 +30,7 @@ type CountryController struct {
 
 type countryCard struct {
 	ID         string
+	DetailsURL string
 	Name       string
 	Type       string
 	Photos     []string
@@ -326,11 +327,12 @@ func (c *CountryController) Get() {
 		}
 
 		cards = append(cards, countryCard{
-			ID:     p.ID,
-			Name:   p.Name,
-			Type:   p.PropertyType,
-			Photos: safeGalleryPhotos(p.Images),
-			Price:  price,
+			ID:         p.ID,
+			DetailsURL: "/property/" + url.PathEscape(p.Slug) + "/" + url.PathEscape(p.ID),
+			Name:       p.Name,
+			Type:       p.PropertyType,
+			Photos:     safeGalleryPhotos(p.Images),
+			Price:      price,
 			Location: strings.Join(
 				nonempty(
 					p.Location.City,

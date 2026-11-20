@@ -104,6 +104,37 @@
         return button;
     }
 
+    // Navigate to the SSR property page when the user clicks
+    // a non-interactive part of a listing card.
+    //
+    // Keep carousel controls, favorites and provider links
+    // independent from property-details navigation.
+    ui.grid.addEventListener("click", event => {
+        const target = event.target instanceof Element
+            ? event.target
+            : null;
+
+        if (!target) return;
+
+        // Native links and interactive controls retain
+        // their existing behavior.
+        if (target.closest(
+            "button, a, input, select, textarea, label"
+        )) {
+            return;
+        }
+
+        const card = target.closest("article.refine-card");
+
+        if (!card || !ui.grid.contains(card)) return;
+
+        const path = card.dataset.detailsUrl || "";
+
+        if (!path.startsWith("/property/")) return;
+
+        window.location.assign(path);
+    });
+
     // Event delegation supports both existing SSR cards
     // and CSR cards added later through infinite scrolling.
     ui.grid.addEventListener("click", event => {
@@ -797,8 +828,25 @@
         ui.messageText.textContent = message;
         ui.message.showModal();
     }
+    function propertyDetailsURL(property) {
+        if (typeof property.slug !== "string" ||
+            typeof property.id !== "string" ||
+            !property.slug || !property.id) {
+            return "";
+        }
+
+        return `/property/${encodeURIComponent(property.slug)}` +
+            `/${encodeURIComponent(property.id)}`;
+    }
+
     function propertyCard(property) {
         const card = node("article", "refine-card");
+        const detailsURL = propertyDetailsURL(property);
+
+        if (detailsURL) {
+            card.dataset.detailsUrl = detailsURL;
+        }
+
         const picture = node("div", "refine-card-picture");
 
         const photos = imageURLs(property.images);
@@ -839,7 +887,22 @@
         rating.append(node("span", "refine-rating-icon", "●"));
         rating.append(document.createTextNode(`${Number(property.rating || 0).toFixed(1)} (${property.review_count || 0} Reviews)`));
         meta.append(rating, node("span", "refine-property-type", property.property_type || ""));
-        body.append(meta, node("h2", "refine-card-title", property.name));
+        const title = node("h2", "refine-card-title");
+
+        if (detailsURL) {
+            const link = node(
+                "a",
+                "refine-details-link",
+                property.name
+            );
+
+            link.href = detailsURL;
+            title.append(link);
+        } else {
+            title.textContent = property.name;
+        }
+
+        body.append(meta, title);
         const details = [property.size_sqft > 0 ? `${property.size_sqft} ft²` : "", property.property_type,
             ...(Array.isArray(property.amenities) ? property.amenities : [])].filter(Boolean).join(" · ");
         body.append(node("p", "refine-card-details", details));
