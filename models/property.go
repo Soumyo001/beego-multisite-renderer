@@ -12,7 +12,6 @@ type PropertyLocation struct {
 }
 
 // Property is the API response shape consumed by static/js/refine.js.
-// Do not register this struct with Beego ORM.
 type Property struct {
 	ID              string           `json:"id"`
 	Slug            string           `json:"slug"`
