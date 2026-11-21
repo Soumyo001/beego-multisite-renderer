@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 
 	"sparrow-ssr/models"
@@ -99,6 +100,37 @@ func propertyCrumbs(location models.PropertyLocation) []propertyCrumb {
 	}
 
 	return crumbs
+}
+
+// formatNightlyPrice renders "USD 1,206" for the booking sidebar.
+func formatNightlyPrice(currency string, amount int) string {
+	if amount <= 0 {
+		return ""
+	}
+
+	digits := strconv.Itoa(amount)
+	var grouped strings.Builder
+	for i, digit := range digits {
+		if i > 0 && (len(digits)-i)%3 == 0 {
+			grouped.WriteByte(',')
+		}
+		grouped.WriteRune(digit)
+	}
+
+	return strings.TrimSpace(currency + " " + grouped.String())
+}
+
+// providerLogo returns the local partner logo for the two
+// providers accepted by safeBooking.
+func providerLogo(provider string) string {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "booking.com":
+		return "/static/img/partners/booking.svg"
+	case "expedia", "expedia.com":
+		return "/static/img/partners/expedia.svg"
+	default:
+		return ""
+	}
 }
 
 type propertyRelatedCard struct {
@@ -264,6 +296,20 @@ func (c *PropertyDetailsController) Get() {
 		details.Property.ProviderName,
 		details.Property.BookingURL,
 	)
+	c.Data["ProviderLogo"] = providerLogo(details.Property.ProviderName)
+	c.Data["PriceText"] = formatNightlyPrice(
+		details.Property.Currency,
+		details.Property.PriceFrom,
+	)
+
+	// "Not the right fit?" links to the same area search
+	// as the first breadcrumb.
+	fitLabel := details.Property.Location.Area
+	if fitLabel == "" {
+		fitLabel = details.Property.Location.City
+	}
+	c.Data["FitLabel"] = fitLabel
+	c.Data["FitURL"] = refineSearchURL(fitLabel)
 	c.Data["Related"] = related
 
 	c.TplName = "property.tpl"

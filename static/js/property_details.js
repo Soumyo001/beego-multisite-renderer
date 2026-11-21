@@ -14,9 +14,11 @@
     const next = document.getElementById("pd-calendar-next");
     const openFull = document.getElementById("pd-calendar-open");
 
+    // status and openFull are optional: the reference-style
+    // sidebar has no status line or "Show Full Calendar" button.
     if (!checkInButton || !checkOutButton || !checkInText ||
-        !checkOutText || !status || !calendar || !months ||
-        !prompt || !done || !prev || !next || !openFull) return;
+        !checkOutText || !calendar || !months ||
+        !prompt || !done || !prev || !next) return;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -53,6 +55,7 @@
     function renderSelection() {
         checkInText.textContent = selectedStart ? displayDate(selectedStart) : "Choose date";
         checkOutText.textContent = selectedEnd ? displayDate(selectedEnd) : "Choose date";
+        if (!status) return;
         status.textContent = selectedStart && selectedEnd
             ? "Dates selected for reference only. Confirm availability and final price with the provider."
             : "Select dates or continue without dates. Availability is not verified here.";
@@ -136,7 +139,17 @@
 
     checkInButton.addEventListener("click", () => openCalendar(checkInButton));
     checkOutButton.addEventListener("click", () => openCalendar(checkOutButton, true));
-    openFull.addEventListener("click", () => openCalendar(openFull));
+    if (openFull) openFull.addEventListener("click", () => openCalendar(openFull));
+
+    // "Enter dates" inside the Price Details dialog: close that
+    // dialog first, then open the date calendar.
+    document.querySelectorAll("[data-open-calendar]").forEach(trigger => {
+        trigger.addEventListener("click", () => {
+            const parent = trigger.closest("dialog");
+            if (parent && parent.open) parent.close();
+            openCalendar(checkInButton);
+        });
+    });
 
     months.addEventListener("click", event => {
         const button = event.target instanceof Element
@@ -196,7 +209,7 @@
 })();
 
 
-// PD-2A: favorite heart and collapsible description.
+// favorite heart and collapsible description.
 // Kept separate from the calendar code above so that
 // neither feature depends on the other's elements.
 (() => {
@@ -269,5 +282,24 @@
         section.classList.toggle("is-collapsed", !expand);
         toggle.setAttribute("aria-expanded", String(expand));
         toggle.textContent = expand ? "Show less" : "Show more";
+    });
+})();
+
+
+// Price Details dialog.
+(() => {
+    "use strict";
+
+    const dialog = document.getElementById("pd-price-dialog");
+    const open = document.getElementById("pd-price-open");
+    const close = document.getElementById("pd-price-close");
+    if (!dialog || !open || !close) return;
+
+    open.addEventListener("click", () => dialog.showModal());
+    close.addEventListener("click", () => dialog.close());
+
+    // A click on the backdrop targets the dialog element itself.
+    dialog.addEventListener("click", event => {
+        if (event.target === dialog) dialog.close();
     });
 })();

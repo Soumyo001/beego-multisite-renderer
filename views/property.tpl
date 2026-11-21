@@ -8,6 +8,9 @@
 
   {{if .GlobalCSS}}<link rel="stylesheet" href="{{.GlobalCSS}}">{{end}}
   {{if .TemplateCSS}}<link rel="stylesheet" href="{{.TemplateCSS}}">{{end}}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap">
   <link rel="stylesheet" href="/static/css/property_details.css">
   <link rel="stylesheet" href="/static/css/property_search_popup.css">
   {{.WidgetHTML}}
@@ -114,6 +117,7 @@
           </section>
         </div>
 
+        <div class="pd-sidebar">
         <aside class="pd-booking" aria-label="Property availability information">
           <h2>Check {{.Property.PropertyType}} Availability</h2>
 
@@ -137,34 +141,25 @@
               </button>
             </div>
           </div>
-          <p id="pd-date-status" class="pd-date-status" role="status" aria-live="polite">
-            Select dates or continue without dates.
-          </p>
-          <button type="button" class="pd-calendar-button" id="pd-calendar-open">
-            Show Full Calendar
-          </button>
 
-          {{if gt .Property.PriceFrom 0}}
-            <p class="pd-rate">
-              <span>Illustrative nightly rate from</span>
-              <strong>{{.Property.Currency}} {{.Property.PriceFrom}}</strong>
-            </p>
-          {{else}}
-            <p class="pd-rate">Confirm price with the provider.</p>
-          {{end}}
-
-          <p class="pd-note">Prices and property facts are illustrative; the dates above do not check live inventory.</p>
+          <div class="pd-rate">
+            <span class="pd-rate-label">Nightly rates from:</span>
+            <strong class="pd-rate-price">{{if .PriceText}}{{.PriceText}}{{else}}Check provider{{end}}</strong>
+            <button type="button" class="pd-price-details" id="pd-price-open"
+                    aria-haspopup="dialog" aria-controls="pd-price-dialog">Price Details</button>
+          </div>
 
           {{if .BookingURL}}
             <a id="pd-check-provider" href="{{.BookingURL}}"
                class="pd-action" rel="noopener noreferrer">{{if .IsDemo}}View Other Hotel{{else}}Check Availability{{end}}</a>
-            {{if .IsDemo}}
-              <p class="pd-redirect-note">This is an illustrative demo listing. The link opens a different, real hotel in the same destination. The displayed photos, details, and prices do not describe that hotel.</p>
-            {{else}}
-              <p class="pd-redirect-note">You will be redirected to the provider to confirm dates, availability and final pricing. Selected dates are not sent automatically.</p>
+            {{if .ProviderLogo}}
+              <p class="pd-redirect-note">
+                You will be redirected to
+                <img class="pd-provider-logo" src="{{.ProviderLogo}}" alt="{{.Property.ProviderName}}">
+              </p>
             {{end}}
           {{else}}
-            <p class="pd-booking-unavailable">Live booking information is not connected for this demonstration listing.</p>
+            <p class="pd-booking-unavailable">Provider link unavailable</p>
           {{end}}
 
           <dialog id="pd-calendar-dialog" class="pd-calendar-dialog"
@@ -192,6 +187,22 @@
             </div>
           </dialog>
         </aside>
+
+        {{if .FitLabel}}
+          <p class="pd-fit">
+            <span>Not the right fit? Check out our other properties in <a href="{{.FitURL}}">{{.FitLabel}}</a></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="14" cy="9" r="6"/><path d="M9.8 13.2 3 20M14 12.2s-2.4-2.1-2.4-3.6a2.4 2.4 0 0 1 4.8 0c0 1.5-2.4 3.6-2.4 3.6z"/></svg>
+          </p>
+        {{end}}
+
+        <dialog id="pd-price-dialog" class="pd-price-dialog" aria-labelledby="pd-price-title">
+          <div class="pd-price-heading">
+            <h2 id="pd-price-title">Price Details</h2>
+            <button type="button" id="pd-price-close" aria-label="Close price details">×</button>
+          </div>
+          <p>Price excludes fees and taxes. <button type="button" class="pd-enter-dates" data-open-calendar>Enter dates</button>, then confirm the full price with the provider.</p>
+        </dialog>
+        </div>
       </div>
 
       <section class="pd-nearby" aria-label="Nearby vacation rentals">
