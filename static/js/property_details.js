@@ -194,3 +194,80 @@
 
     renderSelection();
 })();
+
+
+// PD-2A: favorite heart and collapsible description.
+// Kept separate from the calendar code above so that
+// neither feature depends on the other's elements.
+(() => {
+    "use strict";
+
+    const page = document.querySelector("main.property-details");
+    if (!page) return;
+
+    // Same storage key and format as static/js/refine.js,
+    // so a heart saved here also shows on /refine and /all/:country.
+    const favoritesKey =
+        `sparrow:favorites:v1:${page.dataset.siteKey || location.host}`;
+    const heart = document.getElementById("pd-favorite");
+
+    function readFavorites() {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(favoritesKey) || "[]");
+            return Array.isArray(parsed)
+                ? new Set(parsed.filter(id =>
+                    typeof id === "string" && id.length > 0 && id.length <= 100))
+                : new Set();
+        } catch {
+            return new Set();
+        }
+    }
+
+    function syncHeart(selected) {
+        const name = heart.dataset.propertyName || "property";
+        heart.setAttribute("aria-pressed", String(selected));
+        heart.setAttribute("aria-label", selected
+            ? `Remove ${name} from favorites`
+            : `Add ${name} to favorites`);
+    }
+
+    if (heart && heart.dataset.propertyId) {
+        const id = heart.dataset.propertyId;
+        syncHeart(readFavorites().has(id));
+
+        heart.addEventListener("click", () => {
+            const favorites = readFavorites();
+            if (favorites.has(id)) favorites.delete(id);
+            else favorites.add(id);
+            syncHeart(favorites.has(id));
+            try {
+                localStorage.setItem(favoritesKey, JSON.stringify([...favorites]));
+            } catch {
+                // Storage is optional; the button state still updates.
+            }
+        });
+    }
+
+    // The server always sends the full description. JavaScript only
+    // collapses it when it is taller than the collapsed height.
+    const section = page.querySelector(".pd-description");
+    const body = document.getElementById("pd-description-body");
+    const toggle = document.getElementById("pd-show-more");
+    if (!section || !body || !toggle) return;
+
+    section.classList.add("is-collapsed");
+    if (body.scrollHeight <= body.clientHeight + 4) {
+        section.classList.remove("is-collapsed");
+        return;
+    }
+
+    toggle.hidden = false;
+    toggle.setAttribute("aria-expanded", "false");
+
+    toggle.addEventListener("click", () => {
+        const expand = section.classList.contains("is-collapsed");
+        section.classList.toggle("is-collapsed", !expand);
+        toggle.setAttribute("aria-expanded", String(expand));
+        toggle.textContent = expand ? "Show less" : "Show more";
+    });
+})();

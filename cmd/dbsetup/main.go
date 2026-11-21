@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"sparrow-ssr/services"
@@ -21,7 +22,12 @@ func main() {
 		log.Fatalf("load .env: %v", err)
 	}
 
-	if err := services.InitPropertyDatabase(os.Getenv("DATABASE_URL")); err != nil {
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if databaseURL == "" {
+		databaseURL = strings.TrimSpace(os.Getenv("DATABASE_URL_POOLED"))
+	}
+
+	if err := services.InitPropertyDatabase(databaseURL); err != nil {
 		log.Fatalf("initialize property database: %v", err)
 	}
 

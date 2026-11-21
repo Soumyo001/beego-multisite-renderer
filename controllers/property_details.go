@@ -36,6 +36,71 @@ type PropertyDetailsController struct {
 	beego.Controller
 }
 
+// propertyCrumb is one breadcrumb link above the property title.
+type propertyCrumb struct {
+	Label string
+	URL   string
+}
+
+// refineSearchURL builds the existing /refine search URL
+// used by the header search popup.
+func refineSearchURL(term string) string {
+	query := url.Values{}
+	query.Set("search", term)
+	query.Set("pax", "2")
+	query.Set("order", "1")
+	return "/refine?" + query.Encode()
+}
+
+// propertyCrumbs mirrors the reference breadcrumb:
+// "<Area> Rentals > Country > State > City > Area".
+// Country links to the SSR country page; the other
+// levels link to the existing /refine search.
+func propertyCrumbs(location models.PropertyLocation) []propertyCrumb {
+	root := location.Area
+	if root == "" {
+		root = location.City
+	}
+
+	crumbs := make([]propertyCrumb, 0, 5)
+	if root != "" {
+		crumbs = append(crumbs, propertyCrumb{
+			Label: root + " Rentals",
+			URL:   refineSearchURL(root),
+		})
+	}
+
+	if location.Country != "" {
+		slug := strings.ToLower(
+			strings.Join(strings.Fields(location.Country), "-"),
+		)
+		crumbURL := refineSearchURL(location.Country)
+		if _, ok := countryFromSlug(slug); ok {
+			crumbURL = "/all/" + slug
+		}
+		crumbs = append(crumbs, propertyCrumb{
+			Label: location.Country,
+			URL:   crumbURL,
+		})
+	}
+
+	seen := map[string]bool{location.Country: true}
+	for _, label := range []string{
+		location.State, location.City, location.Area,
+	} {
+		if label == "" || seen[label] {
+			continue
+		}
+		seen[label] = true
+		crumbs = append(crumbs, propertyCrumb{
+			Label: label,
+			URL:   refineSearchURL(label),
+		})
+	}
+
+	return crumbs
+}
+
 type propertyRelatedCard struct {
 	Name     string
 	URL      string
@@ -181,6 +246,8 @@ func (c *PropertyDetailsController) Get() {
 	c.Data["WidgetHTML"] = template.HTML(content.Header.WidgetCode)
 
 	c.Data["Property"] = details.Property
+	c.Data["SiteKey"] = location.ContentDirectory
+	c.Data["Crumbs"] = propertyCrumbs(details.Property.Location)
 	c.Data["IsDemo"] = strings.HasPrefix(details.Property.Slug, "demo-") &&
 		strings.HasSuffix(details.Property.Name, " (Demo)")
 	c.Data["Photos"] = safeGalleryPhotos(details.Property.Images)

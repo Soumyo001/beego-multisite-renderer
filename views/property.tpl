@@ -15,23 +15,41 @@
 <body class="property-route">
   {{.HeaderHTML}}
 
-  <main class="property-details">
+  <main class="property-details" data-site-key="{{.SiteKey}}">
     <div class="pd-container">
       <nav class="pd-crumbs" aria-label="Breadcrumb">
-        <a href="/">Vacation Rentals</a> ›
-        <span>{{.Property.Location.Country}}</span> ›
-        <span>{{.Property.Location.State}}</span> ›
-        <span>{{.Property.Location.City}}</span>
+        <ol>
+          {{range .Crumbs}}<li><a href="{{.URL}}">{{.Label}}</a></li>{{end}}
+        </ol>
       </nav>
 
       <h1>{{.Property.Name}} | {{.Property.PropertyType}} in {{.Property.Location.City}}</h1>
 
       <div class="pd-facts">
-        <span>{{printf "%.1f" .Property.Rating}} ({{.Property.ReviewCount}} reviews)</span>
-        {{if .PetFriendly}}<span>Pet Friendly</span>{{end}}
-        {{if .HasBedrooms}}<span>{{.Bedrooms}} Bedrooms</span>{{end}}
-        {{if .HasBathrooms}}<span>{{.Bathrooms}} Bathrooms</span>{{end}}
-        <span>{{.Property.MaxGuests}} Guests</span>
+        <span class="pd-fact pd-fact-rating">
+          <span class="pd-rating-badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false"><path d="M7 10v11M15 5.9 14 10h5.8a2 2 0 0 1 1.9 2.5l-2.3 8A2 2 0 0 1 17.4 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.8a2 2 0 0 0 1.8-1.1L12 2a3.1 3.1 0 0 1 3 3.9z"/></svg>
+          </span>
+          <strong>{{printf "%.1f" .Property.Rating}}</strong>
+          ({{.Property.ReviewCount}} Reviews)
+        </span>
+        <span class="pd-fact-divider" aria-hidden="true">|</span>
+        {{if .HasBedrooms}}
+          <span class="pd-fact">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 4v16M2 8h18a2 2 0 0 1 2 2v10M2 17h20M6 8v9"/></svg>
+            {{.Bedrooms}} {{if eq .Bedrooms 1}}Bedroom{{else}}Bedrooms{{end}}
+          </span>
+        {{end}}
+        {{if .HasBathrooms}}
+          <span class="pd-fact">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 6 6.5 3.5a1.5 1.5 0 0 0-1-.5C4.7 3 4 3.7 4 4.5V17a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5M2 12h20M7 19v2M17 19v2"/></svg>
+            {{.Bathrooms}} {{if le .Bathrooms 1.0}}Bathroom{{else}}Bathrooms{{end}}
+          </span>
+        {{end}}
+        <span class="pd-fact">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/><circle cx="9" cy="7" r="4"/></svg>
+          {{.Property.MaxGuests}} Guests
+        </span>
       </div>
 
       <div class="pd-columns">
@@ -45,6 +63,13 @@
               <p>Photographs are not available.</p>
             {{end}}
             {{if .Photos}}
+              <button type="button" class="pd-favorite" id="pd-favorite"
+                      data-property-id="{{.Property.ID}}"
+                      data-property-name="{{.Property.Name}}"
+                      aria-pressed="false"
+                      aria-label="Add {{.Property.Name}} to favorites">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              </button>
               <button type="button" class="pd-photos-open" id="pd-photos-open">
                 View More Photos
               </button>
@@ -65,21 +90,27 @@
             </dialog>
           {{end}}
 
-          <section class="pd-description">
-            <h2>
-              {{if .HasBedrooms}}{{.Bedrooms}} Bedroom {{end}}{{.Property.PropertyType}} in {{.Property.Location.City}}
+          <section class="pd-description" aria-labelledby="pd-description-title">
+            <h2 id="pd-description-title">
+              {{if .HasBedrooms}}{{.Bedrooms}} Bedroom {{end}}{{.Property.PropertyType}} in {{if .Property.Location.Area}}{{.Property.Location.Area}}, {{end}}{{.Property.Location.City}}
             </h2>
-            {{if .HasDetails}}
-              <p>{{.Details}}</p>
-            {{else}}
-              <p>Property details are not available.</p>
-            {{end}}
-            {{if .Property.Amenities}}
-              <h2>Amenities</h2>
-              <ul>
-                {{range .Property.Amenities}}<li>{{.}}</li>{{end}}
-              </ul>
-            {{end}}
+            <div class="pd-description-body" id="pd-description-body">
+              {{if .HasDetails}}
+                <p>{{.Details}}</p>
+              {{else}}
+                <p>Property details are not available.</p>
+              {{end}}
+              {{if or .Property.Amenities .PetFriendly}}
+                <p class="pd-amenities-title">Amenities included with rental:</p>
+                <ul class="pd-amenities">
+                  {{range .Property.Amenities}}<li>{{.}}</li>{{end}}
+                  {{if .PetFriendly}}<li>Pet Friendly</li>{{end}}
+                </ul>
+              {{end}}
+            </div>
+            <button type="button" class="pd-show-more" id="pd-show-more"
+                    aria-controls="pd-description-body"
+                    aria-expanded="true" hidden>Show more</button>
           </section>
         </div>
 
