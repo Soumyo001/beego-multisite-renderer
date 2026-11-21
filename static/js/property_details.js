@@ -52,9 +52,39 @@
         });
     }
 
+    // With a complete date range, replace "Nightly rates from"
+    // with Price per night and Total Price (nightly rate x nights).
+    function renderRates() {
+        const from = document.getElementById("pd-rate-from");
+        const rows = document.getElementById("pd-rate-rows");
+        const night = document.getElementById("pd-rate-night");
+        const total = document.getElementById("pd-rate-total");
+        if (!from || !rows || !night || !total) return;
+
+        const start = fromISO(selectedStart);
+        const end = fromISO(selectedEnd);
+        const price = Number(rows.dataset.price);
+        // Math.round absorbs the 23/25-hour days around DST changes.
+        const nights = start && end ? Math.round((end - start) / 86400000) : 0;
+
+        if (nights < 1 || !Number.isFinite(price) || price <= 0) {
+            rows.hidden = true;
+            from.hidden = false;
+            return;
+        }
+
+        const money = amount =>
+            `${rows.dataset.currency || ""} ${amount.toLocaleString("en-US")}`.trim();
+        night.textContent = money(price);
+        total.textContent = money(price * nights);
+        rows.hidden = false;
+        from.hidden = true;
+    }
+
     function renderSelection() {
         checkInText.textContent = selectedStart ? displayDate(selectedStart) : "Choose date";
         checkOutText.textContent = selectedEnd ? displayDate(selectedEnd) : "Choose date";
+        renderRates();
         if (!status) return;
         status.textContent = selectedStart && selectedEnd
             ? "Dates selected for reference only. Confirm availability and final price with the provider."

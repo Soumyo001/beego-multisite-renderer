@@ -142,9 +142,21 @@
             </div>
           </div>
 
-          <div class="pd-rate">
+          <div class="pd-rate" id="pd-rate-from">
             <span class="pd-rate-label">Nightly rates from:</span>
             <strong class="pd-rate-price">{{if .PriceText}}{{.PriceText}}{{else}}Check provider{{end}}</strong>
+          </div>
+
+          {{if gt .Property.PriceFrom 0}}
+            <dl class="pd-rate-rows" id="pd-rate-rows" hidden
+                data-price="{{.Property.PriceFrom}}"
+                data-currency="{{.Property.Currency}}">
+              <div><dt>Price per night</dt><dd id="pd-rate-night"></dd></div>
+              <div><dt>Total Price</dt><dd id="pd-rate-total"></dd></div>
+            </dl>
+          {{end}}
+
+          <div class="pd-rate-links">
             <button type="button" class="pd-price-details" id="pd-price-open"
                     aria-haspopup="dialog" aria-controls="pd-price-dialog">Price Details</button>
           </div>
