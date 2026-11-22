@@ -148,7 +148,7 @@ body.property-route .pd-photos-open:focus-visible { outline: 3px solid #ff790b; 
 
 body.property-route .pd-description { margin: 22px 0 26px; }
 body.property-route .pd-description h2,
-body.property-route .pd-nearby > h2 {
+body.property-route .pd-nearby-head h2 {
     margin: 0 0 10px;
     font: 700 20px/1.3 var(--pd-display-font);
 }
@@ -369,33 +369,20 @@ body.property-route .pd-enter-dates {
 body.property-route .pd-price-dialog button:focus-visible,
 body.property-route .pd-price-details:focus-visible { outline: 3px solid #3687ab; outline-offset: 2px; }
 
-body.property-route .pd-nearby { margin-top: 20px; padding-top: 22px; border-top: 1px solid #b4d5d9; }
-body.property-route .pd-related { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-body.property-route .pd-card {
-    min-width: 0;
-    overflow: hidden;
-    border-radius: 7px;
-    background: #fff;
-    box-shadow: 0 2px 8px rgba(12, 69, 71, .08);
+/* "Vacation Rentals Near": cards and sort control come from refine.css. */
+body.property-route .pd-nearby { margin-top: 20px; padding-top: 22px; border-top: 1px solid #b4d5d9; scroll-margin-top: 110px; }
+body.property-route .pd-nearby-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 20px;
+    margin-bottom: 16px;
 }
-body.property-route .pd-card-main { display: block; height: 100%; color: #082e33; text-decoration: none; }
-body.property-route .pd-card-picture { position: relative; background: #d7e5e6; }
-body.property-route .pd-card-picture img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
-body.property-route .pd-card-price {
-    position: absolute;
-    left: 7px;
-    bottom: 7px;
-    padding: 3px 5px;
-    border-radius: 3px;
-    background: #fff;
-    font: 700 12px/1.3 Arial, sans-serif;
-}
-body.property-route .pd-card-content { padding: 10px 12px 13px; }
-body.property-route .pd-card-rating { margin: 0 0 6px; font: 700 12px Arial, sans-serif; }
-body.property-route .pd-card h3 { margin: 0 0 6px; font: 700 13px/1.4 Arial, sans-serif; }
-body.property-route .pd-card p { margin: 0; font: 12px/1.45 Arial, sans-serif; }
-body.property-route .pd-card-link { display: inline-block; margin-top: 9px; color: #135885; font: 700 12px Arial, sans-serif; }
-body.property-route .pd-card-main:focus-visible { outline: 3px solid #ff790b; outline-offset: -3px; }
+body.property-route .pd-nearby-head h2 { margin: 0; }
+body.property-route .pd-nearby-sort { margin: 0; }
+body.property-route .pd-see-more { margin: 26px 0 0; text-align: center; }
+body.property-route .pd-see-more a { display: inline-block; text-decoration: none; }
 
 /* Native dialogs: gallery and two-month date-range selection. */
 body.property-route .pd-calendar-dialog,
@@ -439,7 +426,6 @@ body.property-route .pd-photo-grid img { display: block; width: 100%; aspect-rat
 
 @media (max-width: 1050px) {
     body.property-route .pd-columns { grid-template-columns: minmax(0, 1fr); gap: 24px; }
-    body.property-route .pd-related { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 600px) {
     body.property-route .pd-container { padding: 0 16px; }
@@ -451,7 +437,6 @@ body.property-route .pd-photo-grid img { display: block; width: 100%; aspect-rat
     }
     body.property-route .pd-gallery img:first-child { grid-column: 1 / -1; grid-row: 1; }
     body.property-route .pd-facts { gap: 6px 10px; }
-    body.property-route .pd-related { gap: 10px; }
     body.property-route .pd-calendar-months { grid-template-columns: minmax(0, 1fr); }
     body.property-route .pd-photo-grid { grid-template-columns: minmax(0, 1fr); }
 }

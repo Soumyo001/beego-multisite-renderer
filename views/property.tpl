@@ -11,11 +11,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap">
+  <link rel="stylesheet" href="/static/css/refine.css">
   <link rel="stylesheet" href="/static/css/property_details.css">
   <link rel="stylesheet" href="/static/css/property_search_popup.css">
   {{.WidgetHTML}}
 </head>
-<body class="property-route">
+<body class="property-route refine-route">
   {{.HeaderHTML}}
 
   <main class="property-details" data-site-key="{{.SiteKey}}">
@@ -217,30 +218,86 @@
         </div>
       </div>
 
-      <section class="pd-nearby" aria-label="Nearby vacation rentals">
-        <h2>Vacation Rentals Near {{.Property.Location.City}}</h2>
-        <div class="pd-related">
-          {{range .Related}}
-            <article class="pd-card">
-              <a class="pd-card-main" href="{{.URL}}">
-                <div class="pd-card-picture">
-                  {{if .Image}}
-                    <img src="{{.Image}}" alt="Illustrative photograph of {{.Name}}" loading="lazy">
-                  {{end}}
-                  <span class="pd-card-price">From {{.Price}}</span>
-                </div>
-                <div class="pd-card-content">
-                  <p class="pd-card-rating">{{printf "%.1f" .Rating}} ({{.Reviews}} reviews)</p>
-                  <h3>{{.Name}}</h3>
-                  <p>{{.Location}}</p>
-                  <span class="pd-card-link">View details</span>
-                </div>
-              </a>
-            </article>
-          {{else}}
-            <p>No nearby properties are currently listed.</p>
+      <section class="pd-nearby" id="pd-nearby" aria-labelledby="pd-nearby-title">
+        <div class="pd-nearby-head">
+          <h2 id="pd-nearby-title">Vacation Rentals Near {{.NearbyLabel}}</h2>
+          {{if .NearbyCards}}
+            <form class="pd-nearby-sort" method="get" action="#pd-nearby">
+              <label class="refine-sort-label" for="pd-sort">
+                Sort by
+                <select id="pd-sort" name="sort">
+                  {{range .SortOptions}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+                </select>
+              </label>
+              <noscript><button type="submit">Sort</button></noscript>
+            </form>
           {{end}}
         </div>
+
+        <div class="refine-grid pd-nearby-grid" id="pd-nearby-grid">
+          {{range .NearbyCards}}
+            <article class="refine-card" data-details-url="{{.DetailsURL}}">
+              <div class="refine-card-picture">
+                {{if .Photos}}
+                  <img class="refine-card-image"
+                       src="{{index .Photos 0}}"
+                       loading="lazy"
+                       decoding="async"
+                       alt="Illustrative accommodation photograph 1 of {{len .Photos}} for {{.Name}}">
+                  <div class="refine-carousel-sources" hidden>
+                    {{range .Photos}}<span data-photo-url="{{.}}"></span>{{end}}
+                  </div>
+                {{else}}
+                  <div class="refine-image-fallback">Photo unavailable</div>
+                {{end}}
+
+                <span class="refine-price">{{.Price}}</span>
+
+                {{if .Eco}}<span class="refine-eco">Eco</span>{{end}}
+
+                <button type="button" class="refine-favorite"
+                        data-property-id="{{.ID}}"
+                        data-property-name="{{.Name}}"
+                        aria-label="Add {{.Name}} to favorites"
+                        aria-pressed="false">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                </button>
+              </div>
+
+              <div class="refine-card-body">
+                <div class="refine-card-meta">
+                  <span class="refine-rating">
+                    <span class="refine-rating-icon" aria-hidden="true">●</span>
+                    {{printf "%.1f" .Rating}} ({{.Reviews}} Reviews)
+                  </span>
+                  <span class="refine-property-type">{{.Type}}</span>
+                </div>
+
+                <h3 class="refine-card-title">
+                  <a class="refine-details-link" href="{{.DetailsURL}}">{{.Name}}</a>
+                </h3>
+
+                <p class="refine-card-details">{{.Amenities}}</p>
+                <p class="refine-card-location">{{.Location}}</p>
+
+                <div class="refine-card-bottom">
+                  <span class="refine-provider">{{.Provider}}</span>
+                  {{if .BookingURL}}
+                    <a class="refine-availability" href="{{.BookingURL}}" rel="noopener noreferrer">{{if .IsDemo}}View Other Hotel{{else}}View Availability{{end}}</a>
+                  {{else}}
+                    <span class="country-unavailable">Provider link unavailable</span>
+                  {{end}}
+                </div>
+              </div>
+            </article>
+          {{else}}
+            <p class="refine-empty">No nearby properties are currently listed.</p>
+          {{end}}
+        </div>
+
+        {{if .NearbyCards}}
+          <p class="pd-see-more"><a class="refine-page-button" href="{{.SeeMoreURL}}">See More</a></p>
+        {{end}}
       </section>
     </div>
   </main>

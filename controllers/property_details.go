@@ -133,14 +133,158 @@ func providerLogo(provider string) string {
 	}
 }
 
-type propertyRelatedCard struct {
-	Name     string
-	URL      string
-	Image    string
-	Price    string
-	Location string
-	Rating   float64
-	Reviews  int
+// newListingCard builds the shared /refine-style SSR card.
+// It is used by /all/:country and the property-details
+// "Vacation Rentals Near" section, so both render identical cards.
+func newListingCard(p models.Property) countryCard {
+	detailParts := make([]string, 0, len(p.Amenities)+1)
+
+	if p.SizeSqFt > 0 {
+		detailParts = append(
+			detailParts,
+			fmt.Sprintf("%d ft²", p.SizeSqFt),
+		)
+	}
+
+	detailParts = append(detailParts, p.Amenities...)
+
+	price := "Check provider for price"
+	if p.PriceFrom > 0 {
+		price = fmt.Sprintf(
+			"From %s %d", p.Currency, p.PriceFrom,
+		)
+	}
+
+	return countryCard{
+		ID:         p.ID,
+		DetailsURL: "/property/" + url.PathEscape(p.Slug) + "/" + url.PathEscape(p.ID),
+		Name:       p.Name,
+		Type:       p.PropertyType,
+		Photos:     safeGalleryPhotos(p.Images),
+		Price:      price,
+		Location: strings.Join(
+			nonempty(
+				p.Location.City,
+				p.Location.Area,
+				p.Location.State,
+			),
+			" › ",
+		),
+		Amenities: strings.Join(
+			detailParts, " · ",
+		),
+		Provider: p.ProviderName,
+		IsDemo: strings.HasPrefix(p.Slug, "demo-") &&
+			strings.HasSuffix(p.Name, " (Demo)"),
+		BookingURL: safeBooking(
+			p.ProviderName, p.BookingURL,
+		),
+		Rating:  p.Rating,
+		Reviews: p.ReviewCount,
+		Eco:     p.EcoFriendly,
+	}
+}
+
+// nearbySortOption is one choice in the "Sort by" select.
+type nearbySortOption struct {
+	Value    string
+	Label    string
+	Selected bool
+}
+
+// The same five choices as the reference page.
+var nearbySortChoices = [][2]string{
+	{"popular", "Most Popular"},
+	{"price_high", "Highest Price"},
+	{"price_low", "Lowest Price"},
+	{"rating_high", "Highest Rating"},
+	{"rating_low", "Lowest Rating"},
+}
+
+// nearbySortOptions validates ?sort=. Unknown values fall back
+// to "popular" instead of failing the whole page.
+func nearbySortOptions(raw string) (string, []nearbySortOption) {
+	selected := "popular"
+	for _, choice := range nearbySortChoices {
+		if raw == choice[0] {
+			selected = raw
+		}
+	}
+
+	options := make([]nearbySortOption, 0, len(nearbySortChoices))
+	for _, choice := range nearbySortChoices {
+		options = append(options, nearbySortOption{
+			Value:    choice[0],
+			Label:    choice[1],
+			Selected: choice[0] == selected,
+		})
+	}
+
+	return selected, options
+}
+
+const minimumNearby = 4
+
+// selectNearby keeps every other property in the same city.
+// Only when that gives fewer than four does it top up with the
+// closest remaining same-country properties.
+func selectNearby(
+	all []models.Property, selected models.Property,
+) []models.Property {
+	ranked := make([]models.Property, 0, len(all))
+	for _, p := range all {
+		if p.ID != selected.ID {
+			ranked = append(ranked, p)
+		}
+	}
+
+	// Stable: SearchCountry's popularity order is kept within a rank.
+	sort.SliceStable(ranked, func(i, j int) bool {
+		return propertyRelatedRank(ranked[i], selected) >
+			propertyRelatedRank(ranked[j], selected)
+	})
+
+	nearby := make([]models.Property, 0, len(ranked))
+	for _, p := range ranked {
+		if propertyRelatedRank(p, selected) >= 1 ||
+			len(nearby) < minimumNearby {
+			nearby = append(nearby, p)
+		}
+	}
+
+	return nearby
+}
+
+// sortNearby applies the visitor's choice on the server.
+// Same-city properties always stay ahead of top-up properties
+// from other cities; the choice orders each group. Stable
+// sorting keeps popularity order between equal values.
+func sortNearby(
+	list []models.Property, mode string, selected models.Property,
+) {
+	sort.SliceStable(list, func(i, j int) bool {
+		a, b := list[i], list[j]
+		aLocal := propertyRelatedRank(a, selected) >= 1
+		bLocal := propertyRelatedRank(b, selected) >= 1
+		if aLocal != bLocal {
+			return aLocal
+		}
+		switch mode {
+		case "price_high":
+			return a.PriceFrom > b.PriceFrom
+		case "price_low":
+			return a.PriceFrom < b.PriceFrom
+		case "rating_high":
+			if a.Rating != b.Rating {
+				return a.Rating > b.Rating
+			}
+			return a.ReviewCount > b.ReviewCount
+		case "rating_low":
+			return a.Rating < b.Rating
+		default:
+			return a.PopularityScore > b.PopularityScore
+		}
+	})
 }
 
 func propertyRelatedRank(
@@ -226,35 +370,18 @@ func (c *PropertyDetailsController) Get() {
 		return
 	}
 
-	sort.SliceStable(nearby, func(i, j int) bool {
-		return propertyRelatedRank(
-			nearby[i], details.Property,
-		) > propertyRelatedRank(
-			nearby[j], details.Property,
-		)
-	})
+	sortMode, sortOptions := nearbySortOptions(c.GetString("sort"))
+	selectedNearby := selectNearby(nearby, details.Property)
+	sortNearby(selectedNearby, sortMode, details.Property)
 
-	related := make([]propertyRelatedCard, 0, 4)
+	nearbyCards := make([]countryCard, 0, len(selectedNearby))
+	for _, p := range selectedNearby {
+		nearbyCards = append(nearbyCards, newListingCard(p))
+	}
 
-	for _, p := range nearby {
-		if p.ID == details.Property.ID {
-			continue
-		}
-
-		if len(related) == 4 {
-			break
-		}
-
-		related = append(related, propertyRelatedCard{
-			Name: p.Name,
-			URL: "/property/" + url.PathEscape(p.Slug) +
-				"/" + url.PathEscape(p.ID),
-			Image:    safePhoto(p.Images),
-			Price:    fmt.Sprintf("%s %d", p.Currency, p.PriceFrom),
-			Location: p.Location.City + ", " + p.Location.State,
-			Rating:   p.Rating,
-			Reviews:  p.ReviewCount,
-		})
+	nearbyLabel := details.Property.Location.City
+	if area := details.Property.Location.Area; area != "" && area != nearbyLabel {
+		nearbyLabel = area + ", " + nearbyLabel
 	}
 
 	language := content.Header.Language
@@ -310,7 +437,10 @@ func (c *PropertyDetailsController) Get() {
 	}
 	c.Data["FitLabel"] = fitLabel
 	c.Data["FitURL"] = refineSearchURL(fitLabel)
-	c.Data["Related"] = related
+	c.Data["NearbyCards"] = nearbyCards
+	c.Data["NearbyLabel"] = nearbyLabel
+	c.Data["SortOptions"] = sortOptions
+	c.Data["SeeMoreURL"] = refineSearchURL(details.Property.Location.City)
 
 	c.TplName = "property.tpl"
 

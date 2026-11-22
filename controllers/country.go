@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -309,52 +308,7 @@ func (c *CountryController) Get() {
 	cards := make([]countryCard, 0, end-start)
 
 	for _, p := range properties[start:end] {
-		detailParts := make([]string, 0, len(p.Amenities)+1)
-
-		if p.SizeSqFt > 0 {
-			detailParts = append(
-				detailParts,
-				fmt.Sprintf("%d ft²", p.SizeSqFt),
-			)
-		}
-
-		detailParts = append(detailParts, p.Amenities...)
-
-		price := "Check provider for price"
-		if p.PriceFrom > 0 {
-			price = fmt.Sprintf(
-				"From %s %d", p.Currency, p.PriceFrom,
-			)
-		}
-
-		cards = append(cards, countryCard{
-			ID:         p.ID,
-			DetailsURL: "/property/" + url.PathEscape(p.Slug) + "/" + url.PathEscape(p.ID),
-			Name:       p.Name,
-			Type:       p.PropertyType,
-			Photos:     safeGalleryPhotos(p.Images),
-			Price:      price,
-			Location: strings.Join(
-				nonempty(
-					p.Location.City,
-					p.Location.Area,
-					p.Location.State,
-				),
-				" › ",
-			),
-			Amenities: strings.Join(
-				detailParts, " · ",
-			),
-			Provider: p.ProviderName,
-			IsDemo: strings.HasPrefix(p.Slug, "demo-") &&
-				strings.HasSuffix(p.Name, " (Demo)"),
-			BookingURL: safeBooking(
-				p.ProviderName, p.BookingURL,
-			),
-			Rating:  p.Rating,
-			Reviews: p.ReviewCount,
-			Eco:     p.EcoFriendly,
-		})
+		cards = append(cards, newListingCard(p))
 	}
 
 	language := content.Header.Language
