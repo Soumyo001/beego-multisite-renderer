@@ -186,7 +186,10 @@
     // Keep instant client operations visually consistent with real API loading.
     // This is a presentation-only minimum, not a server-side delay.
     const MIN_LOADING_MS = 180;
-    const MIN_BATCH_LOADING_MS = 900;
+
+    // Start loading the next batch while the visitor is still this
+    // far above the end of the grid, so cards are ready in time.
+    const PREFETCH_MARGIN_PX = 600;
     let loadingSequence = 0;
     let fetching = false;
     let pendingNavigation = null;
@@ -241,17 +244,6 @@
     function waitForLoading(ticket) {
         const remaining = Math.max(0, MIN_LOADING_MS - (performance.now() - ticket.started));
         return new Promise(resolve => setTimeout(resolve, remaining));
-    }
-
-    // UI-L5: minimum visual duration, not scroll debouncing.
-    function waitForBatchMinimum(started) {
-        const remaining = Math.max(
-            0, MIN_BATCH_LOADING_MS - (performance.now() - started)
-        );
-
-        return new Promise(resolve =>
-            window.setTimeout(resolve, remaining)
-        );
     }
 
     function renderWithLoading(afterRender) {
@@ -650,17 +642,10 @@
             state.visibleCount >= visibleResults.length) return;
 
         csrBatchPending = true;
-        const started = performance.now();
         const resultsForBatch = visibleResults;
         updateBatchControls();
 
         try {
-            await waitForBatchMinimum(started);
-
-            // Do not append stale results if filters or search changed.
-            if (fetching || ui.grid.hidden ||
-                resultsForBatch !== visibleResults) return;
-
             const next = resultsForBatch.slice(
                 state.visibleCount,
                 state.visibleCount + PAGE_SIZE
@@ -679,6 +664,7 @@
         } finally {
             csrBatchPending = false;
             updateBatchControls();
+            requestAnimationFrame(loadMoreIfNear);
         }
     }
 
@@ -686,7 +672,6 @@
         if (!countryNextURL || countryRequestInFlight) return;
         countryRequestInFlight = true;
         countryLoadError = false;
-        const started = performance.now();
         updateBatchControls();
 
         try {
@@ -739,8 +724,6 @@
                 throw new Error("Country pagination did not advance");
             }
 
-            await waitForBatchMinimum(started);
-
             const fragment = document.createDocumentFragment();
             cards.forEach(card => fragment.append(document.importNode(card, true)));
             ui.grid.append(fragment);
@@ -760,12 +743,30 @@
         } finally {
             countryRequestInFlight = false;
             updateBatchControls();
+            requestAnimationFrame(loadMoreIfNear);
         }
     }
 
     function loadNextBatch() {
         if (isCountry) void appendCountryBatch();
         else appendCSRBatch();
+    }
+
+    // Load the next batch only when the end of the grid is within
+    // PREFETCH_MARGIN_PX of the viewport. Called by the observer and
+    // after each batch, because the observer does not fire again
+    // while the end of the grid simply stays inside the margin.
+    function loadMoreIfNear() {
+        if (!ui.paginationWrap || ui.paginationWrap.hidden ||
+            moreButton.hidden || moreButton.disabled ||
+            countryLoadError) {
+            return;
+        }
+
+        const top = ui.paginationWrap.getBoundingClientRect().top;
+        if (top < window.innerHeight + PREFETCH_MARGIN_PX) {
+            loadNextBatch();
+        }
     }
 
     function render() {
@@ -798,6 +799,7 @@
 
         ui.grid.replaceChildren(fragment);
         updateBatchControls();
+        requestAnimationFrame(loadMoreIfNear);
         ui.status.textContent = results.length
             ? `Showing 1 through ${state.visibleCount} of ${results.length} matching properties`
             : "No properties match your search or filters.";
@@ -1197,12 +1199,10 @@
 
         if ("IntersectionObserver" in window) {
             const observer = new IntersectionObserver(entries => {
-                if (entries.some(entry => entry.isIntersecting) &&
-                    !moreButton.hidden && !moreButton.disabled &&
-                    !countryLoadError) {
-                    loadNextBatch();
+                if (entries.some(entry => entry.isIntersecting)) {
+                    loadMoreIfNear();
                 }
-            }, { rootMargin: "10px 0px" });
+            }, { rootMargin: `${PREFETCH_MARGIN_PX}px 0px` });
             observer.observe(ui.paginationWrap);
         }
 
