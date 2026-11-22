@@ -712,6 +712,7 @@ func TestMultiSiteSSRHTTP(t *testing.T) {
 				`id="refine-grid"`,
 				`id="refine-sort"`,
 				`/static/css/refine.css`,
+				`/static/js/listing_cards.js`,
 				`/static/js/refine.js`,
 				`/static/css/property_search_popup.css`,
 				`/static/js/property_search_popup.js`,
@@ -847,6 +848,7 @@ func TestMultiSiteSSRHTTP(t *testing.T) {
 					`data-filter-open="more"`,
 					`id="refine-filter-dialog"`,
 					`id="refine-filter-search"`,
+					`/static/js/listing_cards.js`,
 					`/static/js/refine.js`,
 				} {
 					if !strings.Contains(body, fragment) {

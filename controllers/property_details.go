@@ -173,7 +173,8 @@ func newListingCard(p models.Property) countryCard {
 		Amenities: strings.Join(
 			detailParts, " · ",
 		),
-		Provider: p.ProviderName,
+		Provider:     p.ProviderName,
+		ProviderLogo: providerLogo(p.ProviderName),
 		IsDemo: strings.HasPrefix(p.Slug, "demo-") &&
 			strings.HasSuffix(p.Name, " (Demo)"),
 		BookingURL: safeBooking(
@@ -192,13 +193,11 @@ type nearbySortOption struct {
 	Selected bool
 }
 
-// The same five choices as the reference page.
+// The same three choices, values and labels
 var nearbySortChoices = [][2]string{
 	{"popular", "Most Popular"},
-	{"price_high", "Highest Price"},
-	{"price_low", "Lowest Price"},
-	{"rating_high", "Highest Rating"},
-	{"rating_low", "Lowest Rating"},
+	{"price_low", "Price: Low to High"},
+	{"price_high", "Price: High to Low"},
 }
 
 // nearbySortOptions validates ?sort=. Unknown values fall back
@@ -274,13 +273,6 @@ func sortNearby(
 			return a.PriceFrom > b.PriceFrom
 		case "price_low":
 			return a.PriceFrom < b.PriceFrom
-		case "rating_high":
-			if a.Rating != b.Rating {
-				return a.Rating > b.Rating
-			}
-			return a.ReviewCount > b.ReviewCount
-		case "rating_low":
-			return a.Rating < b.Rating
 		default:
 			return a.PopularityScore > b.PopularityScore
 		}

@@ -281,7 +281,11 @@
                 <p class="refine-card-location">{{.Location}}</p>
 
                 <div class="refine-card-bottom">
-                  <span class="refine-provider">{{.Provider}}</span>
+                  {{if .ProviderLogo}}
+                    <img class="refine-provider-logo" src="{{.ProviderLogo}}" alt="{{.Provider}}" loading="lazy" decoding="async">
+                  {{else}}
+                    <span class="refine-provider">{{.Provider}}</span>
+                  {{end}}
                   {{if .BookingURL}}
                     <a class="refine-availability" href="{{.BookingURL}}" rel="noopener noreferrer">{{if .IsDemo}}View Other Hotel{{else}}View Availability{{end}}</a>
                   {{else}}
@@ -305,6 +309,7 @@
   {{.FooterHTML}}
   {{if .GlobalJS}}<script src="{{.GlobalJS}}" defer></script>{{end}}
   <script src="/static/js/property_search_popup.js" defer></script>
+  <script src="/static/js/listing_cards.js" defer></script>
   <script src="/static/js/property_details.js" defer></script>
 </body>
 </html>

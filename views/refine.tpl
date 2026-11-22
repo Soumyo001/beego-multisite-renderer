@@ -224,9 +224,16 @@
                         </p>
 
                         <div class="refine-card-bottom">
+                            {{if .ProviderLogo}}
+                            <img class="refine-provider-logo"
+                                 src="{{.ProviderLogo}}"
+                                 alt="{{.Provider}}"
+                                 loading="lazy" decoding="async">
+                            {{else}}
                             <span class="refine-provider">
                                 {{.Provider}}
                             </span>
+                            {{end}}
 
                             {{if .BookingURL}}
                             <a class="refine-availability country-availability"
@@ -386,6 +393,7 @@
     </dialog>
 
     {{if .GlobalJS}}<script src="{{.GlobalJS}}" defer></script>{{end}}
+    <script src="/static/js/listing_cards.js" defer></script>
     <script src="/static/js/refine.js" defer></script>
     <script src="/static/js/property_search_popup.js" defer></script>
 </body>

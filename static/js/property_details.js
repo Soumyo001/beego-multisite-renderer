@@ -339,7 +339,8 @@
 // "Vacation Rentals Near": server-rendered /refine-style cards.
 // Sorting happens on the server; this script only adds the same
 // interactions the listing pages have (sort submit, favorites,
-// photo carousel, click-through to the details page).
+// click-through to the details page); the photo carousel comes
+// from the shared static/js/listing_cards.js.
 (() => {
     "use strict";
 
@@ -381,69 +382,11 @@
     grid.querySelectorAll("button.refine-favorite")
         .forEach(button => syncFavorite(button, startFavorites));
 
-    // Carousel: same markup and classes as refine.js, so refine.css
-    // styles the arrows and dots identically.
-    const galleries = new WeakMap();
-
-    function updateCarousel(picture) {
-        const gallery = galleries.get(picture);
-        if (!gallery) return;
-        picture.querySelectorAll(".refine-carousel-arrow").forEach(button => {
-            button.hidden = button.dataset.carouselDirection === "prev"
-                ? gallery.index === 0
-                : gallery.index === gallery.photos.length - 1;
-        });
-        picture.querySelectorAll(".refine-carousel-dot").forEach((dot, index) => {
-            dot.setAttribute("aria-pressed", String(index === gallery.index));
-        });
+    // The identical /refine carousel, from static/js/listing_cards.js.
+    if (window.SparrowCards) {
+        window.SparrowCards.initializeSSRCarousels(grid);
+        window.SparrowCards.bindCarousel(grid);
     }
-
-    grid.querySelectorAll(".refine-carousel-sources").forEach(sources => {
-        const picture = sources.closest(".refine-card-picture");
-        const photos = [...sources.querySelectorAll("[data-photo-url]")]
-            .map(element => element.dataset.photoUrl)
-            .filter(Boolean);
-        sources.remove();
-
-        if (!picture || photos.length < 2 ||
-            !picture.querySelector(".refine-card-image")) return;
-
-        const name = picture.closest(".refine-card")
-            ?.querySelector(".refine-card-title")?.textContent?.trim() || "property";
-        galleries.set(picture, { photos, index: 0, name });
-
-        for (const [direction, path] of [
-            ["prev", "M15 18l-6-6 6-6"],
-            ["next", "M9 18l6-6-6-6"]
-        ]) {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.className = `refine-carousel-arrow refine-carousel-${direction}`;
-            button.dataset.carouselDirection = direction;
-            button.setAttribute("aria-label",
-                `${direction === "prev" ? "Previous" : "Next"} photo of ${name}`);
-            // Static SVG markup only.
-            button.innerHTML =
-                `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${path}"/></svg>`;
-            picture.append(button);
-        }
-
-        const dots = document.createElement("div");
-        dots.className = "refine-carousel-dots";
-        dots.setAttribute("role", "group");
-        dots.setAttribute("aria-label", `Photos of ${name}`);
-        photos.forEach((_, index) => {
-            const dot = document.createElement("button");
-            dot.type = "button";
-            dot.className = "refine-carousel-dot";
-            dot.dataset.carouselGo = String(index);
-            dot.setAttribute("aria-label",
-                `Show photo ${index + 1} of ${photos.length} for ${name}`);
-            dots.append(dot);
-        });
-        picture.append(dots);
-        updateCarousel(picture);
-    });
 
     grid.addEventListener("click", event => {
         const target = event.target instanceof Element ? event.target : null;
@@ -462,27 +405,6 @@
             }
             grid.querySelectorAll("button.refine-favorite")
                 .forEach(button => syncFavorite(button, favorites));
-            return;
-        }
-
-        const control = target.closest(
-            "button[data-carousel-direction], button[data-carousel-go]");
-        if (control) {
-            const picture = control.closest(".refine-card-picture");
-            const gallery = picture && galleries.get(picture);
-            const image = picture?.querySelector(".refine-card-image");
-            if (!gallery || !image) return;
-
-            let next = control.hasAttribute("data-carousel-go")
-                ? Number(control.dataset.carouselGo)
-                : gallery.index + (control.dataset.carouselDirection === "next" ? 1 : -1);
-            next = Math.max(0, Math.min(gallery.photos.length - 1, next));
-            if (next === gallery.index) return;
-
-            gallery.index = next;
-            image.src = gallery.photos[next];
-            image.alt = `Illustrative accommodation photograph ${next + 1} of ${gallery.photos.length} for ${gallery.name}`;
-            updateCarousel(picture);
             return;
         }
 

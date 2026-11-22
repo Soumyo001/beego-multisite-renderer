@@ -1,5 +1,4 @@
-// Shared listing-card behaviour for /refine, /all/:country and
-// the property-details "Vacation Rentals Near" section.
+// Shared listing-card behaviour
 //
 // The carousel code is moved unchanged from static/js/refine.js
 // so every page has the identical photo carousel.

@@ -28,20 +28,21 @@ type CountryController struct {
 }
 
 type countryCard struct {
-	ID         string
-	DetailsURL string
-	Name       string
-	Type       string
-	Photos     []string
-	Price      string
-	Location   string
-	Amenities  string
-	Provider   string
-	BookingURL string
-	IsDemo     bool
-	Rating     float64
-	Reviews    int
-	Eco        bool
+	ID           string
+	DetailsURL   string
+	Name         string
+	Type         string
+	Photos       []string
+	Price        string
+	Location     string
+	Amenities    string
+	Provider     string
+	ProviderLogo string
+	BookingURL   string
+	IsDemo       bool
+	Rating       float64
+	Reviews      int
+	Eco          bool
 }
 
 const countryPageSize = 8
