@@ -594,6 +594,27 @@
         return card;
     }
 
+    // Built cards, keyed by property ID, for the current API result.
+    // Sorting and filtering reuse these elements instead of building
+    // new ones, so photos are not downloaded or decoded again and
+    // the carousel keeps its position.
+    const cardCache = new Map();
+
+    function cardFor(property) {
+        let card = cardCache.get(property.id);
+
+        if (!card) {
+            card = propertyCard(property);
+            cardCache.set(property.id, card);
+        } else {
+            // A detached card may have missed a favorites change.
+            const favorite = card.querySelector("button.refine-favorite");
+            if (favorite) syncFavoriteButton(favorite);
+        }
+
+        return card;
+    }
+
     // UI-L5: preserve SSR HTML on country routes, and append CSR cards locally.
     const moreButton = node("button", "refine-page-button", "Load more properties");
     moreButton.type = "button";
@@ -653,7 +674,7 @@
 
             const fragment = document.createDocumentFragment();
             next.forEach(property =>
-                fragment.append(propertyCard(property))
+                fragment.append(cardFor(property))
             );
 
             ui.grid.append(fragment);
@@ -793,7 +814,7 @@
             ));
         } else {
             results.slice(0, state.visibleCount).forEach(property => {
-                fragment.append(propertyCard(property));
+                fragment.append(cardFor(property));
             });
         }
 
@@ -843,6 +864,7 @@
             await waitForLoading(ticket);
             if (request !== latestRequest || ticket.id !== loadingSequence) return;
             state.properties = data.properties;
+            cardCache.clear();
             render();
         } catch (err) {
             await waitForLoading(ticket);
