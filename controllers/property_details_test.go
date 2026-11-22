@@ -93,3 +93,26 @@ func TestProviderLogo(t *testing.T) {
 		}
 	}
 }
+
+func TestSizedPhoto(t *testing.T) {
+	cases := []struct{ raw, want string }{
+		{
+			"https://images.unsplash.com/photo-1",
+			"https://images.unsplash.com/photo-1?auto=format&fit=crop&q=70&w=640",
+		},
+		{
+			"https://images.unsplash.com/photo-2?auto=format&fit=crop&w=1000&q=75",
+			"https://images.unsplash.com/photo-2?auto=format&fit=crop&q=70&w=640",
+		},
+		{
+			"https://cdn.example.com/a.jpg?w=2000",
+			"https://cdn.example.com/a.jpg?w=2000",
+		},
+	}
+
+	for _, tc := range cases {
+		if got := sizedPhoto(tc.raw, cardPhotoWidth); got != tc.want {
+			t.Errorf("sizedPhoto(%q) = %q, want %q", tc.raw, got, tc.want)
+		}
+	}
+}

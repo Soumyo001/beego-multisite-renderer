@@ -12,6 +12,24 @@
         return n;
     }
 
+    // Same rule as sizedPhoto() in controllers/country.go:
+    // ask images.unsplash.com for a 640px compressed copy, not the
+    // multi-megapixel original. sort() gives the same parameter
+    // order as Go's url.Values.Encode(), so SSR and CSR URLs match
+    // and the browser reuses one cached file.
+    const CARD_PHOTO_WIDTH = "640";
+
+    function sizedPhoto(url) {
+        if (url.hostname.toLowerCase() === "images.unsplash.com") {
+            url.searchParams.set("auto", "format");
+            url.searchParams.set("fit", "crop");
+            url.searchParams.set("q", "70");
+            url.searchParams.set("w", CARD_PHOTO_WIDTH);
+            url.searchParams.sort();
+        }
+        return url.href;
+    }
+
     function imageURLs(images) {
         if (!Array.isArray(images)) return [];
 
@@ -26,7 +44,7 @@
 
                 if ((url.protocol === "https:" || url.protocol === "http:") &&
                     !url.username && !url.password) {
-                    result.push(url.href);
+                    result.push(sizedPhoto(url));
                 }
             } catch {
                 // Skip invalid image URLs.

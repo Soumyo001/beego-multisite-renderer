@@ -147,6 +147,43 @@ func safeGalleryPhotos(images []string) []string {
 	return photos
 }
 
+// Photo widths requested from the image CDN. Listing cards are
+// about 340 CSS px wide; 640 also stays sharp on 1.5x-2x screens.
+const (
+	cardPhotoWidth    = 640
+	galleryPhotoWidth = 1200
+)
+
+// sizedPhoto asks images.unsplash.com for a resized, compressed
+// copy instead of the multi-megapixel original. Other hosts are
+// returned unchanged. Keep in sync with sizedPhoto() in
+// static/js/listing_cards.js so both produce the same URL.
+func sizedPhoto(raw string, width int) string {
+	u, err := url.Parse(raw)
+	if err != nil || width <= 0 ||
+		!strings.EqualFold(u.Hostname(), "images.unsplash.com") {
+		return raw
+	}
+
+	query := u.Query()
+	query.Set("auto", "format")
+	query.Set("fit", "crop")
+	query.Set("q", "70")
+	query.Set("w", strconv.Itoa(width))
+	u.RawQuery = query.Encode() // Encode sorts keys.
+
+	return u.String()
+}
+
+// sizedPhotos applies sizedPhoto to an already validated list.
+func sizedPhotos(photos []string, width int) []string {
+	sized := make([]string, len(photos))
+	for i, photo := range photos {
+		sized[i] = sizedPhoto(photo, width)
+	}
+	return sized
+}
+
 // Match the provider restrictions from static/js/refine.js.
 func safeBooking(provider, raw string) string {
 	provider = strings.ToLower(strings.TrimSpace(provider))

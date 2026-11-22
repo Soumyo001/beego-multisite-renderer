@@ -160,7 +160,7 @@ func newListingCard(p models.Property) countryCard {
 		DetailsURL: "/property/" + url.PathEscape(p.Slug) + "/" + url.PathEscape(p.ID),
 		Name:       p.Name,
 		Type:       p.PropertyType,
-		Photos:     safeGalleryPhotos(p.Images),
+		Photos:     sizedPhotos(safeGalleryPhotos(p.Images), cardPhotoWidth),
 		Price:      price,
 		Location: strings.Join(
 			nonempty(
@@ -401,7 +401,9 @@ func (c *PropertyDetailsController) Get() {
 	c.Data["Crumbs"] = propertyCrumbs(details.Property.Location)
 	c.Data["IsDemo"] = strings.HasPrefix(details.Property.Slug, "demo-") &&
 		strings.HasSuffix(details.Property.Name, " (Demo)")
-	c.Data["Photos"] = safeGalleryPhotos(details.Property.Images)
+	c.Data["Photos"] = sizedPhotos(
+		safeGalleryPhotos(details.Property.Images), galleryPhotoWidth,
+	)
 	c.Data["HasDetails"] = details.Details.Valid
 	c.Data["Details"] = details.Details.String
 	c.Data["HasBedrooms"] = details.Bedrooms.Valid
