@@ -544,7 +544,6 @@ body.refine-route dialog.refine-message-dialog::backdrop { background: rgba(0,0,
 
 .refine-skeleton-card {
     min-width: 0;
-    min-height: 354px;
     overflow: hidden;
     border-radius: 7px;
     background: #fff;
@@ -555,7 +554,10 @@ body.refine-route dialog.refine-message-dialog::backdrop { background: rgba(0,0,
     height: 240px;
 }
 
+/* Same height as a real card body (measured: 153px; 137px in the
+   one-column layout), so swapping skeletons for cards moves nothing. */
 .refine-skeleton-content {
+    height: 153px;
     padding: 13px 12px;
 }
 
@@ -594,6 +596,10 @@ body.refine-route dialog.refine-message-dialog::backdrop { background: rgba(0,0,
 @media (max-width: 600px) {
     .refine-skeleton-media {
         height: 235px;
+    }
+
+    .refine-skeleton-content {
+        height: 137px;
     }
 }
 

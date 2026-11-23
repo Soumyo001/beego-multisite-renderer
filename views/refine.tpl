@@ -37,6 +37,31 @@
         {{end}}
 
         <div class="refine-inner">
+            <script>
+                // Match the publisher navigation's edges before any
+                // content below is painted, so nothing jumps sideways
+                // later. refine.js calls this again on resize.
+                window.sparrowAlignRefine = function () {
+                    var inner = document.querySelector("main.refine-app > .refine-inner");
+                    var nav = document.getElementById("main-navigation");
+                    if (!inner || !nav) return;
+
+                    var navRect = nav.getBoundingClientRect();
+                    var pageRect = inner.parentElement.getBoundingClientRect();
+                    if (navRect.width <= 0 || pageRect.width <= 0) return;
+
+                    var left = Math.max(0, navRect.left - pageRect.left);
+                    var right = Math.max(0, pageRect.right - navRect.right);
+                    if (left + right >= pageRect.width) return;
+
+                    inner.style.width = "auto";
+                    inner.style.maxWidth = "none";
+                    inner.style.marginLeft = left + "px";
+                    inner.style.marginRight = right + "px";
+                    inner.style.paddingInline = "0";
+                };
+                window.sparrowAlignRefine();
+            </script>
             {{if .IsCountry}}
             <p class="refine-breadcrumb">
                 {{.Total}} Vacation Rentals Near {{.Country}} | {{.Country}}
@@ -140,10 +165,27 @@
 
             <p id="refine-status" class="refine-status" role="status" aria-live="polite">{{if not .IsCountry}}Loading properties...{{end}}</p>
 
+            <!-- /refine: skeleton cards are in the first HTML, so the
+                 results area already has its final height when the
+                 page first paints. refine.js reuses them. -->
             <section id="refine-loading-grid"
                      class="refine-grid refine-loading-grid"
-                     aria-hidden="true"
-                     hidden></section>
+                     aria-hidden="true"{{if .IsCountry}}
+                     hidden{{end}}>
+                {{if not .IsCountry}}
+                {{range 8}}
+                <div class="refine-skeleton-card">
+                    <div class="refine-skeleton-media refine-shimmer"></div>
+                    <div class="refine-skeleton-content">
+                        <div class="refine-skeleton-line refine-shimmer" style="width:70%"></div>
+                        <div class="refine-skeleton-line refine-shimmer" style="width:90%"></div>
+                        <div class="refine-skeleton-line refine-shimmer" style="width:83%"></div>
+                        <div class="refine-skeleton-line refine-shimmer" style="width:42%"></div>
+                    </div>
+                </div>
+                {{end}}
+                {{end}}
+            </section>
 
             <section id="refine-grid"
                      class="refine-grid"

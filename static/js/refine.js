@@ -1171,29 +1171,13 @@
         }
     });
 
+    // The alignment itself is an inline script in refine.tpl, so it
+    // runs before the first paint. Other publisher sites might use
+    // different header markup; CSS provides the fallback then.
     function alignWithPublisherHeader() {
-        const navigation = document.getElementById("main-navigation");
-        const inner = app.querySelector(".refine-inner");
-
-        // Other publisher sites might use different header markup.
-        // CSS provides a fallback when this navigation is absent.
-        if (!navigation || !inner) return;
-
-        const navRect = navigation.getBoundingClientRect();
-        const pageRect = app.getBoundingClientRect();
-
-        if (navRect.width <= 0 || pageRect.width <= 0) return;
-
-        const left = Math.max(0, navRect.left - pageRect.left);
-        const right = Math.max(0, pageRect.right - navRect.right);
-
-        if (left + right >= pageRect.width) return;
-
-        inner.style.width = "auto";
-        inner.style.maxWidth = "none";
-        inner.style.marginLeft = `${left}px`;
-        inner.style.marginRight = `${right}px`;
-        inner.style.paddingInline = "0";
+        if (typeof window.sparrowAlignRefine === "function") {
+            window.sparrowAlignRefine();
+        }
     }
 
     window.addEventListener("resize", alignWithPublisherHeader);
