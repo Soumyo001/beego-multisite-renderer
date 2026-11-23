@@ -137,9 +137,7 @@ func NewCatalog(
 	}
 
 	var header models.SiteHeader
-	if err := readJSON(
-		root, fileNames["header.json"], &header,
-	); err != nil {
+	if err := readJSON(root, fileNames["header.json"], &header); err != nil {
 		return nil, err
 	}
 	if header.HeaderHTML == "" {
@@ -147,9 +145,7 @@ func NewCatalog(
 	}
 
 	var footer models.SiteFooter
-	if err := readJSON(
-		root, fileNames["footer.json"], &footer,
-	); err != nil {
+	if err := readJSON(root, fileNames["footer.json"], &footer); err != nil {
 		return nil, err
 	}
 	if footer.FooterHTML == "" {
@@ -176,9 +172,7 @@ func NewCatalog(
 			return nil, err
 		}
 
-		canonical, err := url.Parse(
-			page.Head.CanonicalURL,
-		)
+		canonical, err := url.Parse(page.Head.CanonicalURL)
 
 		if err != nil ||
 			canonical.Scheme != "https" ||
