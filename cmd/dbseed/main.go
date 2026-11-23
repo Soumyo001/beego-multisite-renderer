@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -69,13 +70,17 @@ func main() {
 	syncLinks := flag.Bool(
 		"sync-links", false, "preview demo alternative-provider links",
 	)
+	seedInternational := flag.Bool(
+		"seed-international", false,
+		"preview adding the 24 Toronto and Dhaka demo listings",
+	)
 	apply := flag.Bool(
 		"apply", false, "commit the selected sync mode",
 	)
 	flag.Parse()
 
 	modes := 0
-	for _, enabled := range []bool{*syncImages, *syncDetails, *syncLinks} {
+	for _, enabled := range []bool{*syncImages, *syncDetails, *syncLinks, *seedInternational} {
 		if enabled {
 			modes++
 		}
@@ -144,10 +149,17 @@ func main() {
 		)
 	}
 
-	properties = append(properties, demos...)
+	// Toronto and Dhaka listings for the home-page tiles.
+	international, err := internationalDemoSeedProperties()
+	if err != nil {
+		log.Fatalf("prepare international demo properties: %v", err)
+	}
 
-	// Validate the complete 48-property dataset before
-	// starting the PostgreSQL transaction.
+	properties = append(properties, demos...)
+	properties = append(properties, international...)
+
+	// Validate the complete 72-property dataset before
+	// starting any PostgreSQL transaction.
 	if err := validateSeedData(properties); err != nil {
 		log.Fatalf(
 			"invalid expanded seed data: %v",
@@ -157,7 +169,7 @@ func main() {
 
 	// Provider-link synchronization is a separate dry-run-first operation.
 	if *syncLinks {
-		if err := syncDemoProviderLinks(demos, *apply); err != nil {
+		if err := syncDemoProviderLinks(demos, len(properties), *apply); err != nil {
 			log.Fatalf("demo-link synchronization failed: %v", err)
 		}
 		return
@@ -177,9 +189,38 @@ func main() {
 		return
 	}
 
+	// Adding the 24 international rows is dry-run-first, like the
+	// other modes. Normal seeding below also creates them.
+	if *seedInternational {
+		if err := seedInternationalProperties(
+			international, 48, *apply,
+		); err != nil {
+			log.Fatalf("international seeding failed; no changes committed: %v", err)
+		}
+		return
+	}
+
+	stats, err := insertSeedProperties(properties)
+	if err != nil {
+		log.Fatalf("seed transaction rolled back: %v", err)
+	}
+
+	log.Printf(
+		"Seed complete. New records: locations=%d properties=%d availability=%d",
+		stats.Locations, stats.Properties, stats.Windows,
+	)
+	log.Println(
+		"Existing rows were preserved; rerunning does not overwrite modified property data.",
+	)
+}
+
+// insertSeedProperties creates any missing location, property and
+// availability rows in one transaction. Existing rows are read, never
+// overwritten, so rerunning it is safe.
+func insertSeedProperties(properties []seedProperty) (seedStats, error) {
 	var stats seedStats
 
-	err = orm.NewOrm().DoTx(
+	err := orm.NewOrm().DoTx(
 		func(ctx context.Context, tx orm.TxOrmer) error {
 			knownLocations := make(
 				map[models.PropertyLocation]*models.LocationRecord,
@@ -314,22 +355,86 @@ func main() {
 			return nil
 		},
 	)
+
+	return stats, err
+}
+
+// seedInternationalProperties previews (default) or inserts the 24
+// Toronto and Dhaka demo rows. It refuses to run when the publisher
+// has rows it does not expect, or when an ID or slug is already used
+// by a different property.
+func seedInternationalProperties(
+	international []seedProperty, existingBase int, apply bool,
+) error {
+	db, err := orm.GetDB("default")
 	if err != nil {
-		log.Fatalf("seed transaction rolled back: %v", err)
+		return fmt.Errorf("get database: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	var total int
+	if err := db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM public.properties WHERE site_key = $1`, siteKey,
+	).Scan(&total); err != nil {
+		return fmt.Errorf("count publisher properties: %w", err)
 	}
 
+	pending, unchanged := 0, 0
+	for _, p := range international {
+		var id, slug, name string
+		err := db.QueryRowContext(ctx, `
+			SELECT property_id, slug, name FROM public.properties
+			WHERE site_key = $1 AND (property_id = $2 OR slug = $3)
+			LIMIT 1`,
+			siteKey, p.ID, p.Slug,
+		).Scan(&id, &slug, &name)
+
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			pending++
+			log.Printf("%s: new %s (%s)", p.ID, p.Name, p.Location.City)
+		case err != nil:
+			return fmt.Errorf("check %s: %w", p.ID, err)
+		case id == p.ID && slug == p.Slug && name == p.Name:
+			unchanged++
+		default:
+			return fmt.Errorf(
+				"%s or slug %s is already used by %s (%s); refusing",
+				p.ID, p.Slug, id, name,
+			)
+		}
+	}
+
+	if total != existingBase+unchanged {
+		return fmt.Errorf(
+			"publisher has %d properties; expected %d; refusing",
+			total, existingBase+unchanged,
+		)
+	}
+
+	if !apply {
+		log.Printf(
+			"DRY RUN: %d would be added, %d already present; no changes made",
+			pending, unchanged,
+		)
+		return nil
+	}
+
+	stats, err := insertSeedProperties(international)
+	if err != nil {
+		return err
+	}
 	log.Printf(
-		"Seed complete. New records: locations=%d properties=%d availability=%d",
-		stats.Locations, stats.Properties, stats.Windows,
+		"COMMITTED: properties=%d locations=%d availability=%d added; %d already present",
+		stats.Properties, stats.Locations, stats.Windows, unchanged,
 	)
-	log.Println(
-		"Existing rows were preserved; rerunning does not overwrite modified property data.",
-	)
+	return nil
 }
 
 // syncDemoProviderLinks updates only the two provider columns of the 33
 // pre-existing, publisher-scoped demo rows. Dry-run is the default.
-func syncDemoProviderLinks(demos []seedProperty, apply bool) error {
+func syncDemoProviderLinks(demos []seedProperty, expectedTotal int, apply bool) error {
 	if len(demos) != 33 {
 		return fmt.Errorf("expected 33 demo properties, got %d", len(demos))
 	}
@@ -352,8 +457,8 @@ func syncDemoProviderLinks(demos []seedProperty, apply bool) error {
 	).Scan(&total); err != nil {
 		return fmt.Errorf("count publisher properties: %w", err)
 	}
-	if total != 48 {
-		return fmt.Errorf("publisher has %d properties; expected 48; refusing update", total)
+	if total != expectedTotal {
+		return fmt.Errorf("publisher has %d properties; expected %d; refusing update", total, expectedTotal)
 	}
 
 	pending, unchanged := 0, 0
