@@ -80,6 +80,62 @@ func TestBuildTilesReplacements(t *testing.T) {
 			!strings.Contains(block, "&lt;Stay&gt;") {
 			t.Errorf("%s block markup is unexpected:\n%.400s", id, block)
 		}
+
+		// tiles_per_page 4 of 12: cards 5-12 start hidden, 3 pages.
+		if n := strings.Count(block, `" hidden><div class="refine-card-picture">`); n != 8 {
+			t.Errorf("%s has %d hidden cards; want 8", id, n)
+		}
+		if !strings.Contains(block, `data-site-key="site"`) ||
+			!strings.Contains(block, `--sparrow-tiles-columns: 4`) ||
+			!strings.Contains(block, `>1 / 3</span>`) {
+			t.Errorf("%s pager markup is unexpected:\n%.600s", id, block)
+		}
+	}
+}
+
+func TestNewTilesBlock(t *testing.T) {
+	cards := make([]countryCard, 5)
+	for _, tc := range []struct{ perPage, wantPer, wantPages, wantCols int }{
+		{4, 4, 2, 4},
+		{2, 2, 3, 2},
+		{0, 5, 1, 4},  // invalid: everything on one page
+		{12, 5, 1, 4}, // more than the results
+	} {
+		b := newTilesBlock("k", "s", tc.perPage, cards)
+		if b.PerPage != tc.wantPer || b.Pages != tc.wantPages || b.Columns != tc.wantCols {
+			t.Errorf("perPage %d: got %d/%d/%d; want %d/%d/%d", tc.perPage,
+				b.PerPage, b.Pages, b.Columns, tc.wantPer, tc.wantPages, tc.wantCols)
+		}
+	}
+}
+
+func TestPageBodyWithTiles(t *testing.T) {
+	body := `<div class="pres__tiles-container" id="id2lqh"><p>dummy tile</p></div><p id="x">keep</p>`
+
+	got, ok := pageBodyWithTiles("site", body, json.RawMessage(tilesJSON), &fakeTilesSearcher{})
+	if !ok || strings.Contains(got, "dummy tile") ||
+		!strings.Contains(got, `<p id="x">keep</p>`) ||
+		strings.Count(got, `<article class="refine-card"`) != 12 {
+		t.Fatalf("ok=%v body:\n%.500s", ok, got)
+	}
+
+	// No tiles_component, no searcher, bad JSON, or no block found:
+	// the publisher body is returned unchanged.
+	for name, tc := range map[string]struct {
+		raw    string
+		search services.PropertyTilesSearcher
+		body   string
+	}{
+		"missing":   {"", &fakeTilesSearcher{}, body},
+		"null":      {"null", &fakeTilesSearcher{}, body},
+		"no search": {tilesJSON, nil, body},
+		"bad json":  {`{"x":1}`, &fakeTilesSearcher{}, body},
+		"no blocks": {tilesJSON, &fakeTilesSearcher{}, `<p id="x">keep</p>`},
+	} {
+		got, ok := pageBodyWithTiles("site", tc.body, json.RawMessage(tc.raw), tc.search)
+		if ok || got != tc.body {
+			t.Errorf("%s: ok=%v, body changed to %.200s", name, ok, got)
+		}
 	}
 }
 

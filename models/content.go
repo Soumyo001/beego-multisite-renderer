@@ -21,12 +21,13 @@ type SiteFooter struct {
 
 // PageDocument represents the structure shared by home, privacy-policy, site-terms and blog pages.
 type PageDocument struct {
-	Head                PageHead `json:"head"`
-	Body                PageBody `json:"body"`
-	CKEnabled           bool     `json:"ck_enabled"`
-	FAQ                 []FAQ    `json:"faq"`
-	IsDynamicBlogPage   bool     `json:"isDynamicBlogPage"`
-	HasWeatherComponent bool     `json:"has_weather_component"`
+	Head                PageHead        `json:"head"`
+	Body                PageBody        `json:"body"`
+	CKEnabled           bool            `json:"ck_enabled"`
+	FAQ                 []FAQ           `json:"faq"`
+	IsDynamicBlogPage   bool            `json:"isDynamicBlogPage"`
+	HasWeatherComponent bool            `json:"has_weather_component"`
+	TilesComponent      json.RawMessage `json:"tiles_component"`
 }
 
 type PageHead struct {

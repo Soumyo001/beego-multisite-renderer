@@ -120,9 +120,18 @@ func (c *PageController) Get() {
 		content.Header.HeaderHTML,
 	)
 
-	c.Data["BodyHTML"] = template.HTML(
+	// Fill the property tile blocks listed in tiles_component; the
+	// publisher body is used unchanged when there are none.
+	body, hasTiles := pageBodyWithTiles(
+		location.ContentDirectory,
 		content.Page.Body.Content,
+		content.Page.TilesComponent,
+		tilesSearch,
 	)
+
+	c.Data["HasTiles"] = hasTiles
+
+	c.Data["BodyHTML"] = template.HTML(body)
 
 	c.Data["FooterHTML"] = template.HTML(
 		content.Footer.FooterHTML,

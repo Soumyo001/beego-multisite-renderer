@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"sparrow-ssr/services"
 )
@@ -63,17 +64,38 @@ var tilesBlockIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 // tilesBlock is the data for one rendered block.
 type tilesBlock struct {
 	Keyword string
-	PerPage int
+	SiteKey string
+	PerPage int // cards shown per page, 1..len(Cards)
+	Pages   int
+	Columns int // grid columns on wide screens, 1..4
 	Cards   []countryCard
+}
+
+// newTilesBlock applies tiles_per_page: an invalid value or one larger
+// than the result count shows every card on a single page.
+func newTilesBlock(keyword, siteKey string, perPage int, cards []countryCard) tilesBlock {
+	if perPage < 1 || perPage > len(cards) {
+		perPage = len(cards)
+	}
+	columns := min(perPage, 4)
+	return tilesBlock{
+		Keyword: keyword,
+		SiteKey: siteKey,
+		PerPage: perPage,
+		Pages:   (len(cards) + perPage - 1) / perPage,
+		Columns: columns,
+		Cards:   cards,
+	}
 }
 
 // The same card markup as the /refine and "Vacation Rentals Near"
 // cards (refine.css). Titles are <h4> because each home section
 // already has an <h3> heading.
 var tilesBlockTemplate = template.Must(template.New("tiles").Parse(
-	`<div class="refine-grid sparrow-tiles-grid" data-tiles-keyword="{{.Keyword}}" data-per-page="{{.PerPage}}">` +
-		`{{range .Cards}}` +
-		`<article class="refine-card" data-details-url="{{.DetailsURL}}">` +
+	`<div class="sparrow-tiles" data-site-key="{{.SiteKey}}" data-per-page="{{.PerPage}}">` +
+		`<div class="refine-grid sparrow-tiles-grid" data-tiles-keyword="{{.Keyword}}" style="--sparrow-tiles-columns: {{.Columns}}">` +
+		`{{range $i, $card := .Cards}}{{with $card}}` +
+		`<article class="refine-card" data-details-url="{{.DetailsURL}}"{{if ge $i $.PerPage}} hidden{{end}}>` +
 		`<div class="refine-card-picture">` +
 		`{{if .Photos}}` +
 		`<img class="refine-card-image" src="{{index .Photos 0}}" loading="lazy" decoding="async" alt="Illustrative accommodation photograph 1 of {{len .Photos}} for {{.Name}}">` +
@@ -101,6 +123,14 @@ var tilesBlockTemplate = template.Must(template.New("tiles").Parse(
 		`</div>` +
 		`</div>` +
 		`</article>` +
+		`{{end}}{{end}}` +
+		`</div>` +
+		`{{if gt .Pages 1}}` +
+		`<div class="sparrow-tiles-pager">` +
+		`<button type="button" class="refine-page-button" data-tiles-step="-1" aria-label="Previous properties" disabled>&lsaquo;</button>` +
+		`<span class="sparrow-tiles-status" aria-live="polite">1 / {{.Pages}}</span>` +
+		`<button type="button" class="refine-page-button" data-tiles-step="1" aria-label="Next properties">&rsaquo;</button>` +
+		`</div>` +
 		`{{end}}` +
 		`</div>`,
 ))
@@ -182,15 +212,76 @@ func buildTilesReplacements(
 		}
 
 		var out bytes.Buffer
-		if err := tilesBlockTemplate.Execute(&out, tilesBlock{
-			Keyword: component.Keyword,
-			PerPage: int(component.TilesPerPage),
-			Cards:   cards,
-		}); err != nil {
+		block := newTilesBlock(
+			component.Keyword, siteDirectory, int(component.TilesPerPage), cards,
+		)
+		if err := tilesBlockTemplate.Execute(&out, block); err != nil {
 			return nil, fmt.Errorf("render tiles block %s: %w", id, err)
 		}
 		replacements[id] = out.String()
 	}
 
 	return replacements, nil
+}
+
+// tilesSearch is set once at start-up, before Beego serves requests.
+var tilesSearch services.PropertyTilesSearcher
+
+// SetTilesDependencies wires the database query used by tile blocks.
+func SetTilesDependencies(search services.PropertyTilesSearcher) {
+	tilesSearch = search
+}
+
+// pageBodyWithTiles fills the page's tile blocks from tiles_component.
+// It returns the publisher body unchanged (and false) when the page has
+// no tiles_component or anything goes wrong, so a tiles problem never
+// breaks the page itself.
+func pageBodyWithTiles(
+	siteDirectory, body string,
+	raw json.RawMessage,
+	search services.PropertyTilesSearcher,
+) (string, bool) {
+	if len(bytes.TrimSpace(raw)) == 0 || string(bytes.TrimSpace(raw)) == "null" {
+		return body, false
+	}
+	if search == nil {
+		logTilesOnce("tiles: no property search configured; keeping the publisher blocks")
+		return body, false
+	}
+
+	replacements, err := buildTilesReplacements(siteDirectory, raw, search)
+	if err != nil {
+		log.Printf("tiles: %v; keeping the publisher blocks", err)
+		return body, false
+	}
+	if len(replacements) == 0 {
+		return body, false
+	}
+
+	out, missing, err := services.ReplaceElementContents(body, replacements)
+	if err != nil {
+		log.Printf("tiles: %v; keeping the publisher blocks", err)
+		return body, false
+	}
+	if len(missing) > 0 {
+		logTilesOnce(fmt.Sprintf(
+			"tiles: %s: tiles_block_id not found in the page: %s",
+			siteDirectory, strings.Join(missing, ", "),
+		))
+	}
+	if len(missing) == len(replacements) {
+		return body, false
+	}
+
+	return out, true
+}
+
+// A block id missing from the page would otherwise be logged on every
+// request; log each distinct message once per process.
+var tilesLogged sync.Map
+
+func logTilesOnce(message string) {
+	if _, seen := tilesLogged.LoadOrStore(message, struct{}{}); !seen {
+		log.Print(message)
+	}
 }

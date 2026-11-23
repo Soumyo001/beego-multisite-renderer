@@ -68,6 +68,11 @@ func RegisterPropertyAPI(
 		controllers.SetPropertyDetailsDependencies(reader, search)
 	}
 
+	// Home-page tile blocks (tiles_component) use the same service.
+	if tiles, ok := search.(services.PropertyTilesSearcher); ok {
+		controllers.SetTilesDependencies(tiles)
+	}
+
 	beego.Router(
 		"/api/properties",
 		&controllers.PropertyAPIController{},

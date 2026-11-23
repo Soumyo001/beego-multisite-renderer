@@ -48,6 +48,12 @@
     <!-- Local enhancements for the existing search popup -->
     <link rel="stylesheet" href="/static/css/property_search_popup.css">
 
+    {{if .HasTiles}}
+    <!-- Property cards for the tiles_component blocks -->
+    <link rel="stylesheet" href="/static/css/refine.css">
+    <link rel="stylesheet" href="/static/css/home_tiles.css">
+    {{end}}
+
     <!-- Site widget provided by the publisher -->
     {{.WidgetHTML}}
 </head>
@@ -74,5 +80,11 @@
 
     <!-- Search popup destination, dates and guests -->
     <script src="/static/js/property_search_popup.js" defer></script>
+
+    {{if .HasTiles}}
+    <!-- Carousel, favorites, paging and click-through for tile cards -->
+    <script src="/static/js/listing_cards.js" defer></script>
+    <script src="/static/js/home_tiles.js" defer></script>
+    {{end}}
 </body>
 </html>
