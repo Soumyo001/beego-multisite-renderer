@@ -365,7 +365,3 @@ Future optimizations should start with **measured requirements**, then isolated 
 - [Go diagnostics, profiling and tracing](https://go.dev/doc/diagnostics)
 - [Beego documentation](https://beegodoc.com/)
 - [Redis client-side caching](https://redis.io/docs/latest/develop/clients/client-side-caching/)
-
----
-
-**Status (17 November 2026):** Publisher routing, local JSON SSR, decoded-content caching, the three-table PostgreSQL property integration, country SSR, refine CSR, and responsive loading/search/filter interactions are implemented. The documented functional and race-test runs passed locally. The performance figures above describe the recorded benchmark workloads, not remote traffic or browser page-load performance. Multi-preview isolation has automated test coverage; file-configured bulk preview aliases and automatic publisher-registration lifecycle management have not been implemented.
