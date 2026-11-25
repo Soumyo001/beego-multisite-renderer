@@ -52,10 +52,10 @@ func TestTilesOrderBy(t *testing.T) {
 	}
 }
 
-// Run explicitly with SPARROW_TEST_NEON=1. Read-only.
+// Run explicitly with TEST_NEON=1. Read-only.
 func TestSearchTilesSeededNeon(t *testing.T) {
-	if os.Getenv("SPARROW_TEST_NEON") != "1" {
-		t.Skip("set SPARROW_TEST_NEON=1 to run the read-only Neon test")
+	if os.Getenv("TEST_NEON") != "1" {
+		t.Skip("set TEST_NEON=1 to run the read-only Neon test")
 	}
 	if err := godotenv.Load("../.env"); err != nil &&
 		!errors.Is(err, os.ErrNotExist) {

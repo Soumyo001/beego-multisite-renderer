@@ -6,7 +6,7 @@
     );
 
     if (!popup ||
-        popup.dataset.sparrowSearchReady === "true") {
+        popup.dataset.bmrSearchReady === "true") {
         return;
     }
 
@@ -29,8 +29,8 @@
 
     if (!dateWrap || !guestWrap) return;
 
-    popup.dataset.sparrowSearchReady = "true";
-    popup.classList.add("sparrow-search-ready");
+    popup.dataset.bmrSearchReady = "true";
+    popup.classList.add("bmr-search-ready");
 
     let selectedStart = "";
     let selectedEnd = "";
@@ -55,7 +55,7 @@
         }
     }
 
-    const searchStorageKey = `sparrow:last-search:v1:${publisherHost}`;
+    const searchStorageKey = `bmr:last-search:v1:${publisherHost}`;
 
     let saveTimer = null;
     let rememberedGuests = 2;
@@ -70,40 +70,40 @@
     dates.tabIndex = 0;
 
     const calendar = document.createElement("dialog");
-    calendar.className = "sparrow-range-dialog";
-    calendar.setAttribute("aria-labelledby", "sparrow-range-title");
+    calendar.className = "bmr-range-dialog";
+    calendar.setAttribute("aria-labelledby", "bmr-range-title");
     calendar.innerHTML = `
-        <div class="sparrow-range-surface">
-            <div class="sparrow-range-header">
-                <h2 id="sparrow-range-title">When do you want to travel?</h2>
-                <button type="button" class="sparrow-range-close"
+        <div class="bmr-range-surface">
+            <div class="bmr-range-header">
+                <h2 id="bmr-range-title">When do you want to travel?</h2>
+                <button type="button" class="bmr-range-close"
                         aria-label="Close date calendar">×</button>
             </div>
-            <div class="sparrow-range-toolbar">
-                <button type="button" class="sparrow-range-prev"
+            <div class="bmr-range-toolbar">
+                <button type="button" class="bmr-range-prev"
                         aria-label="Previous month">‹</button>
-                <div class="sparrow-range-months"></div>
-                <button type="button" class="sparrow-range-next"
+                <div class="bmr-range-months"></div>
+                <button type="button" class="bmr-range-next"
                         aria-label="Next month">›</button>
             </div>
-            <div class="sparrow-range-footer">
-                <span class="sparrow-range-summary" role="status"
+            <div class="bmr-range-footer">
+                <span class="bmr-range-summary" role="status"
                       aria-live="polite"></span>
-                <div class="sparrow-range-actions">
-                    <button type="button" class="sparrow-range-clear">Cancel</button>
-                    <button type="button" class="sparrow-range-apply">Continue</button>
+                <div class="bmr-range-actions">
+                    <button type="button" class="bmr-range-clear">Cancel</button>
+                    <button type="button" class="bmr-range-apply">Continue</button>
                 </div>
             </div>
         </div>
     `;
     document.body.append(calendar);
 
-    const monthsRoot = calendar.querySelector(".sparrow-range-months");
-    const previousMonth = calendar.querySelector(".sparrow-range-prev");
-    const nextMonth = calendar.querySelector(".sparrow-range-next");
-    const summary = calendar.querySelector(".sparrow-range-summary");
-    const applyDates = calendar.querySelector(".sparrow-range-apply");
-    const cancelDates = calendar.querySelector(".sparrow-range-clear");
+    const monthsRoot = calendar.querySelector(".bmr-range-months");
+    const previousMonth = calendar.querySelector(".bmr-range-prev");
+    const nextMonth = calendar.querySelector(".bmr-range-next");
+    const summary = calendar.querySelector(".bmr-range-summary");
+    const applyDates = calendar.querySelector(".bmr-range-apply");
+    const cancelDates = calendar.querySelector(".bmr-range-clear");
 
     const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     let pendingStart = "";
@@ -277,7 +277,7 @@
 
     function monthPanel(year, month) {
         const section = document.createElement("section");
-        section.className = "sparrow-range-month";
+        section.className = "bmr-range-month";
 
         const title = document.createElement("h3");
         title.textContent = new Intl.DateTimeFormat("en-US", {
@@ -286,12 +286,12 @@
         section.append(title);
 
         const grid = document.createElement("div");
-        grid.className = "sparrow-range-days";
+        grid.className = "bmr-range-days";
         section.append(grid);
 
         for (const weekday of weekdays) {
             const label = document.createElement("span");
-            label.className = "sparrow-range-weekday";
+            label.className = "bmr-range-weekday";
             label.textContent = weekday;
             grid.append(label);
         }
@@ -308,7 +308,7 @@
             const iso = isoDate(year, month, day);
             const button = document.createElement("button");
             button.type = "button";
-            button.className = "sparrow-range-day";
+            button.className = "bmr-range-day";
             button.textContent = String(day);
             button.dataset.date = iso;
             button.disabled = iso < todayISO();
@@ -320,10 +320,10 @@
             ));
 
             if (iso === pendingStart || iso === pendingEnd) {
-                button.classList.add("sparrow-range-selected");
+                button.classList.add("bmr-range-selected");
             } else if (pendingStart && pendingEnd &&
                        iso > pendingStart && iso < pendingEnd) {
-                button.classList.add("sparrow-range-between");
+                button.classList.add("bmr-range-between");
             }
 
             button.addEventListener("click", () => {
@@ -374,7 +374,7 @@
 
         if (focusISO) {
             const chosen = monthsRoot.querySelector(
-                `.sparrow-range-day[data-date="${focusISO}"]`
+                `.bmr-range-day[data-date="${focusISO}"]`
             );
             chosen?.focus();
         }
@@ -393,7 +393,7 @@
         renderCalendar();
         dates.setAttribute("aria-expanded", "true");
         calendar.showModal();
-        calendar.querySelector(".sparrow-range-close").focus();
+        calendar.querySelector(".bmr-range-close").focus();
     }
 
     previousMonth.addEventListener("click", () => {
@@ -404,7 +404,7 @@
         visibleMonth.setMonth(visibleMonth.getMonth() + 1);
         renderCalendar();
     });
-    calendar.querySelector(".sparrow-range-close")
+    calendar.querySelector(".bmr-range-close")
         .addEventListener("click", () => calendar.close());
 
     // Prevent publisher's document-level click/escape listeners
@@ -445,7 +445,7 @@
     const guestNumber = document.createElement("input");
 
     guestNumber.type = "number";
-    guestNumber.className = "sparrow-guest-number";
+    guestNumber.className = "bmr-guest-number";
     guestNumber.min = "1";
     guestNumber.max = "20";
     guestNumber.step = "1";
@@ -476,7 +476,7 @@
     // Keep validation feedback outside the horizontal
     // search row to prevent it becoming another flex item.
     const error = document.createElement("p");
-    error.className = "sparrow-search-error";
+    error.className = "bmr-search-error";
     error.setAttribute("role", "alert");
     error.hidden = true;
 
@@ -495,7 +495,7 @@
     }
 
     function closeGuests() {
-        guestPanel.classList.remove("sparrow-open");
+        guestPanel.classList.remove("bmr-open");
         guestDisplay.setAttribute("aria-expanded", "false");
     }
 
@@ -581,12 +581,12 @@
         event.stopImmediatePropagation();
 
         const shouldOpen =
-            !guestPanel.classList.contains("sparrow-open");
+            !guestPanel.classList.contains("bmr-open");
 
         closeDates();
 
         guestPanel.classList.toggle(
-            "sparrow-open",
+            "bmr-open",
             shouldOpen
         );
 
@@ -705,33 +705,33 @@
         searchButton.setAttribute("aria-busy", "true");
 
         const overlay = document.createElement("section");
-        overlay.className = "sparrow-search-transition";
+        overlay.className = "bmr-search-transition";
         overlay.setAttribute("aria-label", "Loading search results");
 
         const inner = document.createElement("div");
-        inner.className = "sparrow-search-transition-inner";
+        inner.className = "bmr-search-transition-inner";
         inner.innerHTML = `
-            <p class="sparrow-search-transition-status" role="status">
+            <p class="bmr-search-transition-status" role="status">
                 Preparing your search...
             </p>
-            <h2 class="sparrow-search-transition-heading"></h2>
-            <div class="sparrow-search-transition-grid" aria-hidden="true"></div>
+            <h2 class="bmr-search-transition-heading"></h2>
+            <div class="bmr-search-transition-grid" aria-hidden="true"></div>
         `;
-        inner.querySelector(".sparrow-search-transition-heading").textContent =
+        inner.querySelector(".bmr-search-transition-heading").textContent =
             `Finding a Place to Stay in ${search}`;
 
         const skeletonCard = `
-            <div class="sparrow-search-transition-card">
-                <div class="sparrow-search-transition-photo sparrow-search-transition-shimmer"></div>
-                <div class="sparrow-search-transition-details">
-                    <div class="sparrow-search-transition-line sparrow-search-transition-shimmer" style="width:70%"></div>
-                    <div class="sparrow-search-transition-line sparrow-search-transition-shimmer" style="width:90%"></div>
-                    <div class="sparrow-search-transition-line sparrow-search-transition-shimmer" style="width:83%"></div>
-                    <div class="sparrow-search-transition-line sparrow-search-transition-shimmer" style="width:42%"></div>
+            <div class="bmr-search-transition-card">
+                <div class="bmr-search-transition-photo bmr-search-transition-shimmer"></div>
+                <div class="bmr-search-transition-details">
+                    <div class="bmr-search-transition-line bmr-search-transition-shimmer" style="width:70%"></div>
+                    <div class="bmr-search-transition-line bmr-search-transition-shimmer" style="width:90%"></div>
+                    <div class="bmr-search-transition-line bmr-search-transition-shimmer" style="width:83%"></div>
+                    <div class="bmr-search-transition-line bmr-search-transition-shimmer" style="width:42%"></div>
                 </div>
             </div>
         `;
-        inner.querySelector(".sparrow-search-transition-grid").innerHTML =
+        inner.querySelector(".bmr-search-transition-grid").innerHTML =
             skeletonCard.repeat(8);
         overlay.append(inner);
 

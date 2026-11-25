@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"sparrow-ssr/models"
+	"beego-multisite-renderer/models"
 )
 
 // NewMultiCatalog combines deployment catalogs into one read-only route index.

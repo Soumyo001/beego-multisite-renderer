@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"sparrow-ssr/models"
+	"beego-multisite-renderer/models"
 )
 
 func TestPropertyDetailsIdentity(t *testing.T) {

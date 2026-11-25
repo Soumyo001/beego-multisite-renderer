@@ -8,11 +8,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Run explicitly with SPARROW_TEST_NEON=1.
+// Run explicitly with TEST_NEON=1.
 // This test reads the seeded Neon database only.
 func TestDatabasePropertySearchSeededNeon(t *testing.T) {
-	if os.Getenv("SPARROW_TEST_NEON") != "1" {
-		t.Skip("set SPARROW_TEST_NEON=1 to run the read-only Neon test")
+	if os.Getenv("TEST_NEON") != "1" {
+		t.Skip("set TEST_NEON=1 to run the read-only Neon test")
 	}
 
 	if err := godotenv.Load("../.env"); err != nil &&

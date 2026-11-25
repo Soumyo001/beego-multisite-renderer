@@ -251,7 +251,7 @@
     // Same storage key and format as static/js/refine.js,
     // so a heart saved here also shows on /refine and /all/:country.
     const favoritesKey =
-        `sparrow:favorites:v1:${page.dataset.siteKey || location.host}`;
+        `bmr:favorites:v1:${page.dataset.siteKey || location.host}`;
     const heart = document.getElementById("pd-favorite");
 
     function readFavorites() {
@@ -355,7 +355,7 @@
 
     const page = document.querySelector("main.property-details");
     const favoritesKey =
-        `sparrow:favorites:v1:${page?.dataset.siteKey || location.host}`;
+        `bmr:favorites:v1:${page?.dataset.siteKey || location.host}`;
 
     function readFavorites() {
         try {
@@ -383,9 +383,9 @@
         .forEach(button => syncFavorite(button, startFavorites));
 
     // The identical /refine carousel, from static/js/listing_cards.js.
-    if (window.SparrowCards) {
-        window.SparrowCards.initializeSSRCarousels(grid);
-        window.SparrowCards.bindCarousel(grid);
+    if (window.ListingCards) {
+        window.ListingCards.initializeSSRCarousels(grid);
+        window.ListingCards.bindCarousel(grid);
     }
 
     grid.addEventListener("click", event => {

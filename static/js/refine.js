@@ -13,7 +13,7 @@
 
     const PAGE_SIZE = 8;
     const FAVORITES_KEY =
-        `sparrow:favorites:v1:${app.dataset.siteKey || location.host}`;
+        `bmr:favorites:v1:${app.dataset.siteKey || location.host}`;
 
     const HEART_SVG =
         `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">` +
@@ -472,7 +472,7 @@
         initializeSSRCarousels,
         bindCarousel,
         providerLabel
-    } = window.SparrowCards;
+    } = window.ListingCards;
 
     bindCarousel(ui.grid);
 
@@ -1175,8 +1175,8 @@
     // runs before the first paint. Other publisher sites might use
     // different header markup; CSS provides the fallback then.
     function alignWithPublisherHeader() {
-        if (typeof window.sparrowAlignRefine === "function") {
-            window.sparrowAlignRefine();
+        if (typeof window.alignRefineLayout === "function") {
+            window.alignRefineLayout();
         }
     }
 

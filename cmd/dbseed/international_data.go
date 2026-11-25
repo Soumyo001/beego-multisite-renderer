@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"sparrow-ssr/models"
+	"beego-multisite-renderer/models"
 )
 
 // internationalListing is one illustrative listing for the

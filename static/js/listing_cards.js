@@ -396,7 +396,7 @@
         return img;
     }
 
-    window.SparrowCards = Object.freeze({
+    window.ListingCards = Object.freeze({
         imageURLs,
         initializeCarousel,
         initializeSSRCarousels,

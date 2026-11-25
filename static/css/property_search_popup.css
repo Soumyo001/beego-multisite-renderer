@@ -1,21 +1,21 @@
 
 /* Keep the original publisher's search layout and guest dropdown. */
-.sparrow-search-ready .datepicker-wrap,
-.sparrow-search-ready .guest-container {
+.bmr-search-ready .datepicker-wrap,
+.bmr-search-ready .guest-container {
     position: relative;
     overflow: visible !important;
 }
 
-.sparrow-search-ready .search-datepicker-input,
-.sparrow-search-ready .search-guest-input {
+.bmr-search-ready .search-datepicker-input,
+.bmr-search-ready .search-guest-input {
     cursor: pointer;
 }
 
-.sparrow-search-ready #search-guest-panel:not(.sparrow-open) {
+.bmr-search-ready #search-guest-panel:not(.bmr-open) {
     display: none !important;
 }
 
-.sparrow-search-ready #search-guest-panel.sparrow-open {
+.bmr-search-ready #search-guest-panel.bmr-open {
     position: absolute !important;
     top: calc(100% + 8px);
     left: 0;
@@ -33,13 +33,13 @@
     box-shadow: 0 12px 35px rgba(0, 0, 0, .18);
 }
 
-.sparrow-search-ready .guest-input-wrap {
+.bmr-search-ready .guest-input-wrap {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.sparrow-search-ready .sparrow-guest-number {
+.bmr-search-ready .bmr-guest-number {
     width: 65px;
     min-height: 36px;
     padding: 6px;
@@ -51,11 +51,11 @@
     font-size: 15px;
 }
 
-.sparrow-search-ready .sparrow-search-error[hidden] {
+.bmr-search-ready .bmr-search-error[hidden] {
     display: none !important;
 }
 
-.sparrow-search-ready .sparrow-search-error {
+.bmr-search-ready .bmr-search-error {
     width: 100%;
     max-width: 1041px;
     margin: 10px auto 0;
@@ -65,35 +65,35 @@
 }
 
 /* No visible focus border on the three main search fields. */
-.sparrow-search-ready #location_search:focus,
-.sparrow-search-ready #date_picker:focus,
-.sparrow-search-ready #guest_picker:focus,
-.sparrow-search-ready #location_search:focus-visible,
-.sparrow-search-ready #date_picker:focus-visible,
-.sparrow-search-ready #guest_picker:focus-visible {
+.bmr-search-ready #location_search:focus,
+.bmr-search-ready #date_picker:focus,
+.bmr-search-ready #guest_picker:focus,
+.bmr-search-ready #location_search:focus-visible,
+.bmr-search-ready #date_picker:focus-visible,
+.bmr-search-ready #guest_picker:focus-visible {
     outline: none !important;
     box-shadow: none !important;
     border-color: transparent !important;
 }
 
 /* Mouse clicks should not create a button focus ring. */
-.sparrow-search-ready .property-search-content button:focus {
+.bmr-search-ready .property-search-content button:focus {
     outline: none;
     box-shadow: none;
 }
 
 /* Preserve a visible indicator for keyboard navigation. */
-.sparrow-search-ready .property-search-content button:focus-visible {
+.bmr-search-ready .property-search-content button:focus-visible {
     outline: 2px solid #83c2d1 !important;
     outline-offset: -3px;
     box-shadow: none !important;
 }
 
-.sparrow-search-ready .search-property-btn {
+.bmr-search-ready .search-property-btn {
     cursor: pointer;
 }
 
-.sparrow-search-ready .search-property-btn:hover {
+.bmr-search-ready .search-property-btn:hover {
     filter: brightness(1.08);
 }
 
@@ -105,7 +105,7 @@
  */
 
 /* A soft elevated surface for the complete search bar. */
-.sparrow-search-ready .property-search-content {
+.bmr-search-ready .property-search-content {
     border-radius: 14px;
     background: #ffffff;
     box-shadow:
@@ -115,18 +115,18 @@
 }
 
 /* Gentle interaction feedback on individual field areas. */
-.sparrow-search-ready .property-search-content .search-input-wrap {
+.bmr-search-ready .property-search-content .search-input-wrap {
     min-width: 0;
     transition: background-color 160ms ease;
 }
 
-.sparrow-search-ready .property-search-content .search-input-wrap:hover,
-.sparrow-search-ready .property-search-content .search-input-wrap:focus-within {
+.bmr-search-ready .property-search-content .search-input-wrap:hover,
+.bmr-search-ready .property-search-content .search-input-wrap:focus-within {
     background-color: #f2f7fa;
 }
 
 /* Clean text styling, without individual input borders. */
-.sparrow-search-ready .property-search-content
+.bmr-search-ready .property-search-content
 :is(#location_search, #date_picker, #guest_picker) {
     min-width: 0;
     border: 0 !important;
@@ -138,19 +138,19 @@
     caret-color: #073f5c;
 }
 
-.sparrow-search-ready .property-search-content
+.bmr-search-ready .property-search-content
 :is(#location_search, #date_picker, #guest_picker)::placeholder {
     color: #82949b;
     opacity: 1;
 }
 
 /* Preserve the original connected-bar silhouette. */
-.sparrow-search-ready .property-search-content .destination-wrap {
+.bmr-search-ready .property-search-content .destination-wrap {
     border-radius: 14px 0 0 14px;
 }
 
 /* More refined search button, using the existing navy palette. */
-.sparrow-search-ready .property-search-content .search-property-btn {
+.bmr-search-ready .property-search-content .search-property-btn {
     border: 0 !important;
     border-radius: 0 14px 14px 0;
     background: linear-gradient(
@@ -166,7 +166,7 @@
         box-shadow 160ms ease;
 }
 
-.sparrow-search-ready .property-search-content .search-property-btn:hover {
+.bmr-search-ready .property-search-content .search-property-btn:hover {
     filter: brightness(1.12);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
 }
@@ -176,23 +176,23 @@
  * round the outer top and bottom corners.
  */
 @media (max-width: 1024px) {
-    .sparrow-search-ready .property-search-content .destination-wrap {
+    .bmr-search-ready .property-search-content .destination-wrap {
         border-radius: 14px 14px 0 0;
     }
 
-    .sparrow-search-ready .property-search-content .search-btn-wrap,
-    .sparrow-search-ready .property-search-content .search-property-btn {
+    .bmr-search-ready .property-search-content .search-btn-wrap,
+    .bmr-search-ready .property-search-content .search-property-btn {
         border-radius: 0 0 14px 14px !important;
     }
 
-    .sparrow-search-ready .property-search-content .search-btn-wrap {
+    .bmr-search-ready .property-search-content .search-btn-wrap {
         overflow: hidden;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .sparrow-search-ready .property-search-content .search-input-wrap,
-    .sparrow-search-ready .property-search-content .search-property-btn {
+    .bmr-search-ready .property-search-content .search-input-wrap,
+    .bmr-search-ready .property-search-content .search-property-btn {
         transition: none;
     }
 }
@@ -202,7 +202,7 @@
  * Appended to document.body as a native modal dialog.
  * Keep the dialog centered with visible side margins.
  */
-.sparrow-range-dialog {
+.bmr-range-dialog {
     position: fixed;
     inset: 0;
     box-sizing: border-box;
@@ -220,20 +220,20 @@
     box-shadow: 0 24px 70px rgba(0, 0, 0, .28);
 }
 
-.sparrow-range-dialog::backdrop {
+.bmr-range-dialog::backdrop {
     background: rgba(3, 17, 26, .58);
 }
 
-.sparrow-range-dialog,
-.sparrow-range-dialog * {
+.bmr-range-dialog,
+.bmr-range-dialog * {
     box-sizing: border-box;
 }
 
-.sparrow-range-surface {
+.bmr-range-surface {
     padding: 22px 22px 18px;
 }
 
-.sparrow-range-header {
+.bmr-range-header {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -241,7 +241,7 @@
     padding: 0 36px 18px;
 }
 
-.sparrow-range-header h2 {
+.bmr-range-header h2 {
     margin: 0;
     color: #092f37;
     font-size: 22px;
@@ -249,12 +249,12 @@
     text-align: center;
 }
 
-.sparrow-range-dialog button {
+.bmr-range-dialog button {
     cursor: pointer;
     font: inherit;
 }
 
-.sparrow-range-close {
+.bmr-range-close {
     position: absolute;
     right: 0;
     top: -6px;
@@ -266,15 +266,15 @@
     line-height: 1;
 }
 
-.sparrow-range-toolbar {
+.bmr-range-toolbar {
     display: grid;
     grid-template-columns: 34px minmax(0, 1fr) 34px;
     gap: 8px;
     align-items: start;
 }
 
-.sparrow-range-prev,
-.sparrow-range-next {
+.bmr-range-prev,
+.bmr-range-next {
     min-height: 32px;
     padding: 0;
     border: 1px solid #d5e1e4;
@@ -284,27 +284,27 @@
     font-size: 24px !important;
 }
 
-.sparrow-range-dialog button:disabled {
+.bmr-range-dialog button:disabled {
     cursor: not-allowed;
     opacity: .35;
 }
 
-.sparrow-range-months {
+.bmr-range-months {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 18px;
 }
 
-.sparrow-range-month {
+.bmr-range-month {
     min-width: 0;
 }
 
-.sparrow-range-month + .sparrow-range-month {
+.bmr-range-month + .bmr-range-month {
     border-left: 1px solid #e3ebec;
     padding-left: 18px;
 }
 
-.sparrow-range-month h3 {
+.bmr-range-month h3 {
     margin: 3px 0 12px;
     color: #092f37;
     font-size: 15px;
@@ -312,21 +312,21 @@
     text-align: center;
 }
 
-.sparrow-range-days {
+.bmr-range-days {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 3px;
     text-align: center;
 }
 
-.sparrow-range-weekday {
+.bmr-range-weekday {
     padding: 8px 0;
     color: #52676b;
     font-size: 11px;
     font-weight: 700;
 }
 
-.sparrow-range-day {
+.bmr-range-day {
     min-width: 0;
     min-height: 36px;
     padding: 3px 0;
@@ -337,27 +337,27 @@
     font-size: 13px;
 }
 
-.sparrow-range-day:hover:not(:disabled) {
+.bmr-range-day:hover:not(:disabled) {
     background: #deeeef;
 }
 
-.sparrow-range-day.sparrow-range-between {
+.bmr-range-day.bmr-range-between {
     background: #e3f4f3;
     border-radius: 0;
 }
 
-.sparrow-range-day.sparrow-range-selected,
-.sparrow-range-day.sparrow-range-selected:hover {
+.bmr-range-day.bmr-range-selected,
+.bmr-range-day.bmr-range-selected:hover {
     background: #07343c;
     color: #fff;
 }
 
-.sparrow-range-dialog button:focus-visible {
+.bmr-range-dialog button:focus-visible {
     outline: 2px solid #bda85e;
     outline-offset: 1px;
 }
 
-.sparrow-range-footer {
+.bmr-range-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -368,17 +368,17 @@
     border-top: 1px solid #e3ebec;
 }
 
-.sparrow-range-summary {
+.bmr-range-summary {
     font-size: 13px;
     font-weight: 600;
 }
 
-.sparrow-range-actions {
+.bmr-range-actions {
     display: flex;
     gap: 10px;
 }
 
-.sparrow-range-actions button {
+.bmr-range-actions button {
     min-height: 40px;
     padding: 8px 18px;
     border: 1px solid #07343c;
@@ -389,7 +389,7 @@
     font-weight: 700;
 }
 
-.sparrow-range-actions .sparrow-range-apply {
+.bmr-range-actions .bmr-range-apply {
     background: #07343c;
     color: #fff;
 }
@@ -399,41 +399,41 @@
  * One month, centered, with horizontal margins.
  */
 @media (max-width: 650px) {
-    .sparrow-range-dialog {
+    .bmr-range-dialog {
         width: min(420px, calc(100vw - 36px));
         max-width: calc(100vw - 36px);
         max-height: calc(100dvh - 36px);
     }
 
-    .sparrow-range-surface {
+    .bmr-range-surface {
         padding: 18px 12px 14px;
     }
 
-    .sparrow-range-header h2 {
+    .bmr-range-header h2 {
         font-size: 18px;
     }
 
-    .sparrow-range-months {
+    .bmr-range-months {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .sparrow-range-month:nth-child(2) {
+    .bmr-range-month:nth-child(2) {
         display: none;
     }
 
-    .sparrow-range-day {
+    .bmr-range-day {
         min-height: 38px;
     }
 
-    .sparrow-range-footer {
+    .bmr-range-footer {
         align-items: stretch;
     }
 
-    .sparrow-range-actions {
+    .bmr-range-actions {
         width: 100%;
     }
 
-    .sparrow-range-actions button {
+    .bmr-range-actions button {
         flex: 1;
     }
 }
@@ -441,12 +441,12 @@
 
 /* UI-L2: homepage Search -> refine navigation transition. */
 
-.sparrow-search-transition,
-.sparrow-search-transition * {
+.bmr-search-transition,
+.bmr-search-transition * {
     box-sizing: border-box;
 }
 
-.sparrow-search-transition {
+.bmr-search-transition {
     position: fixed;
     inset: 0;
     z-index: 2147483000;
@@ -457,32 +457,32 @@
     font-family: Arial, Helvetica, sans-serif;
 }
 
-.sparrow-search-transition-inner {
+.bmr-search-transition-inner {
     width: 100%;
     max-width: 1585px;
     margin: 0 auto;
     padding-inline: 20px;
 }
 
-.sparrow-search-transition-status {
+.bmr-search-transition-status {
     margin: 0 0 12px;
     color: #31575a;
     font-size: 13px;
 }
 
-.sparrow-search-transition-heading {
+.bmr-search-transition-heading {
     margin: 0 0 24px;
     color: #062d2d;
     font: 700 clamp(29px, 2.25vw, 38px)/1.12 Georgia, serif;
 }
 
-.sparrow-search-transition-grid {
+.bmr-search-transition-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 17px;
 }
 
-.sparrow-search-transition-card {
+.bmr-search-transition-card {
     min-width: 0;
     min-height: 354px;
     overflow: hidden;
@@ -491,21 +491,21 @@
     box-shadow: 0 2px 8px rgba(12, 69, 71, .08);
 }
 
-.sparrow-search-transition-photo {
+.bmr-search-transition-photo {
     height: 240px;
 }
 
-.sparrow-search-transition-details {
+.bmr-search-transition-details {
     padding: 13px 12px;
 }
 
-.sparrow-search-transition-line {
+.bmr-search-transition-line {
     height: 13px;
     margin-bottom: 11px;
     border-radius: 4px;
 }
 
-.sparrow-search-transition-shimmer {
+.bmr-search-transition-shimmer {
     background: linear-gradient(
         90deg,
         #eef2f3 20%,
@@ -513,10 +513,10 @@
         #eef2f3 74%
     );
     background-size: 220% 100%;
-    animation: sparrow-search-shimmer 1.4s ease-in-out infinite;
+    animation: bmr-search-shimmer 1.4s ease-in-out infinite;
 }
 
-@keyframes sparrow-search-shimmer {
+@keyframes bmr-search-shimmer {
     from {
         background-position: 100% 0;
     }
@@ -526,46 +526,46 @@
 }
 
 @media (min-width: 768px) {
-    .sparrow-search-transition-inner {
+    .bmr-search-transition-inner {
         padding-inline: 30px;
     }
 }
 
 @media (min-width: 1536px) {
-    .sparrow-search-transition-inner {
+    .bmr-search-transition-inner {
         padding-inline: 50px;
     }
 }
 
 @media (max-width: 1240px) {
-    .sparrow-search-transition-grid {
+    .bmr-search-transition-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 910px) {
-    .sparrow-search-transition-grid {
+    .bmr-search-transition-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .sparrow-search-transition-photo {
+    .bmr-search-transition-photo {
         height: 215px;
     }
 }
 
 @media (max-width: 600px) {
-    .sparrow-search-transition-grid {
+    .bmr-search-transition-grid {
         grid-template-columns: 1fr;
         gap: 14px;
     }
 
-    .sparrow-search-transition-photo {
+    .bmr-search-transition-photo {
         height: 235px;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .sparrow-search-transition-shimmer {
+    .bmr-search-transition-shimmer {
         animation: none;
     }
 }

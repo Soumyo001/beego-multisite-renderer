@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"sparrow-ssr/models"
+	"beego-multisite-renderer/models"
 )
 
 type routeKey struct {

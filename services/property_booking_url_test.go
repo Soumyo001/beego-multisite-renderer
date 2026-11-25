@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"sparrow-ssr/models"
+	"beego-multisite-renderer/models"
 )
 
 // Check the public response's booking_url contract without using mock JSON files.

@@ -1,10 +1,10 @@
 package services
 
 import (
+	"beego-multisite-renderer/models"
 	"context"
 	"fmt"
 	"net/url"
-	"sparrow-ssr/models"
 	"strings"
 	"time"
 

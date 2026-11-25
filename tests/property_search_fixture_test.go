@@ -4,8 +4,8 @@ import (
 	"strings"
 	"time"
 
-	"sparrow-ssr/models"
-	"sparrow-ssr/services"
+	"beego-multisite-renderer/models"
+	"beego-multisite-renderer/services"
 )
 
 // fixturePropertySearcher exercises controller wiring and site-key propagation.

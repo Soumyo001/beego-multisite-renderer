@@ -1,4 +1,4 @@
-module sparrow-ssr
+module beego-multisite-renderer
 
 go 1.26.0
 

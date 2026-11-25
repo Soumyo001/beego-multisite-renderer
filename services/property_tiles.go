@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"sparrow-ssr/models"
+	"beego-multisite-renderer/models"
 
 	"github.com/beego/beego/v2/client/orm"
 )

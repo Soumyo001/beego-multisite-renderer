@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"sparrow-ssr/models"
-	"sparrow-ssr/services"
+	"beego-multisite-renderer/models"
+	"beego-multisite-renderer/services"
 )
 
 // fakeTilesSearcher records queries and returns n properties per query.
@@ -86,7 +86,7 @@ func TestBuildTilesReplacements(t *testing.T) {
 			t.Errorf("%s has %d hidden cards; want 8", id, n)
 		}
 		if !strings.Contains(block, `data-site-key="site"`) ||
-			!strings.Contains(block, `--sparrow-tiles-columns: 4`) ||
+			!strings.Contains(block, `--bmr-tiles-columns: 4`) ||
 			!strings.Contains(block, `>1 / 3</span>`) {
 			t.Errorf("%s pager markup is unexpected:\n%.600s", id, block)
 		}

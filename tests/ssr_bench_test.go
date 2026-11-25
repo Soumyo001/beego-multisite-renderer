@@ -10,9 +10,9 @@ import (
 	"sync"
 	"testing"
 
-	"sparrow-ssr/models"
-	"sparrow-ssr/routers"
-	"sparrow-ssr/services"
+	"beego-multisite-renderer/models"
+	"beego-multisite-renderer/routers"
+	"beego-multisite-renderer/services"
 
 	beego "github.com/beego/beego/v2/server/web"
 )

@@ -2,46 +2,46 @@
  * refine.css styles the cards; its body.refine-route rules are
  * repeated here, scoped to the tiles, so the publisher page body
  * does not need the refine-route class. */
-.sparrow-tiles,
-.sparrow-tiles * {
+.bmr-tiles,
+.bmr-tiles * {
     box-sizing: border-box;
 }
 
-.refine-grid.sparrow-tiles-grid {
-    grid-template-columns: repeat(var(--sparrow-tiles-columns, 4), minmax(0, 1fr));
+.refine-grid.bmr-tiles-grid {
+    grid-template-columns: repeat(var(--bmr-tiles-columns, 4), minmax(0, 1fr));
     text-align: left;
 }
 
 /* .refine-card sets display:flex, which would beat [hidden]. */
-.sparrow-tiles-grid > .refine-card[hidden] {
+.bmr-tiles-grid > .refine-card[hidden] {
     display: none;
 }
 
-.sparrow-tiles .refine-card-title {
+.bmr-tiles .refine-card-title {
     margin: 1px 0;
     font: 700 12px/1.35 Arial, sans-serif;
     color: #071e33;
 }
 
-.sparrow-tiles .refine-card[data-details-url] {
+.bmr-tiles .refine-card[data-details-url] {
     cursor: pointer;
 }
 
-.sparrow-tiles .refine-details-link {
+.bmr-tiles .refine-details-link {
     color: inherit;
     text-decoration: none;
 }
 
-.sparrow-tiles .refine-details-link:hover {
+.bmr-tiles .refine-details-link:hover {
     text-decoration: underline;
 }
 
-.sparrow-tiles .refine-details-link:focus-visible {
+.bmr-tiles .refine-details-link:focus-visible {
     outline: 2px solid #3687ab;
     outline-offset: 2px;
 }
 
-.sparrow-tiles a.refine-availability {
+.bmr-tiles a.refine-availability {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -49,18 +49,18 @@
     text-decoration: none;
 }
 
-.sparrow-tiles a.refine-availability:hover {
+.bmr-tiles a.refine-availability:hover {
     background: #e56d00;
     color: #fff;
 }
 
-.sparrow-tiles .country-unavailable {
+.bmr-tiles .country-unavailable {
     color: #60757a;
     font: 12px/1.4 Arial, sans-serif;
     cursor: default;
 }
 
-.sparrow-tiles-pager {
+.bmr-tiles-pager {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -68,7 +68,7 @@
     margin-top: 18px;
 }
 
-.sparrow-tiles-status {
+.bmr-tiles-status {
     min-width: 48px;
     color: #204b59;
     font: 700 13px Arial, sans-serif;
@@ -76,13 +76,13 @@
 }
 
 @media (max-width: 910px) {
-    .refine-grid.sparrow-tiles-grid {
+    .refine-grid.bmr-tiles-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 600px) {
-    .refine-grid.sparrow-tiles-grid {
+    .refine-grid.bmr-tiles-grid {
         grid-template-columns: 1fr;
     }
 }

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"sparrow-ssr/models"
+	"beego-multisite-renderer/models"
 )
 
 // ContentLoader reads and caches decoded JSON documents.

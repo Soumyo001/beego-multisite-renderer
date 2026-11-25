@@ -1,9 +1,9 @@
 package services
 
 import (
+	"beego-multisite-renderer/models"
 	"encoding/json"
 	"fmt"
-	"sparrow-ssr/models"
 	"strings"
 
 	"github.com/beego/beego/v2/client/orm"

@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"sparrow-ssr/routers"
-	"sparrow-ssr/services"
+	"beego-multisite-renderer/routers"
+	"beego-multisite-renderer/services"
 
 	beego "github.com/beego/beego/v2/server/web"
 	"github.com/joho/godotenv"
@@ -27,7 +27,7 @@ func main() {
 	deploymentFiles := []string{"conf/deployment.json"}
 
 	// Optionally override the deployment metadata files.
-	if configured := strings.TrimSpace(os.Getenv("SPARROW_DEPLOYMENTS")); configured != "" {
+	if configured := strings.TrimSpace(os.Getenv("DEPLOYMENTS")); configured != "" {
 		deploymentFiles = strings.Split(configured, ",")
 
 		for i, file := range deploymentFiles {

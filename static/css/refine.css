@@ -1,5 +1,3 @@
-
-/* Sparrow SSR /refine. Reference-inspired results layout. */
 body.refine-route { margin: 0; }
 body.refine-route .refine-app, body.refine-route .refine-app * { box-sizing: border-box; }
 body.refine-route .refine-app {

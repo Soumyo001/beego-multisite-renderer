@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"sparrow-ssr/models"
+	"beego-multisite-renderer/models"
 )
 
 const testSiteHost = "test-travel-templates.beta.123presto.com"

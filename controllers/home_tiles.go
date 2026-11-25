@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"sparrow-ssr/services"
+	"beego-multisite-renderer/services"
 )
 
 // flexInt accepts both 12 and "12", because publisher JSON is not
@@ -92,8 +92,8 @@ func newTilesBlock(keyword, siteKey string, perPage int, cards []countryCard) ti
 // cards (refine.css). Titles are <h4> because each home section
 // already has an <h3> heading.
 var tilesBlockTemplate = template.Must(template.New("tiles").Parse(
-	`<div class="sparrow-tiles" data-site-key="{{.SiteKey}}" data-per-page="{{.PerPage}}">` +
-		`<div class="refine-grid sparrow-tiles-grid" data-tiles-keyword="{{.Keyword}}" style="--sparrow-tiles-columns: {{.Columns}}">` +
+	`<div class="bmr-tiles" data-site-key="{{.SiteKey}}" data-per-page="{{.PerPage}}">` +
+		`<div class="refine-grid bmr-tiles-grid" data-tiles-keyword="{{.Keyword}}" style="--bmr-tiles-columns: {{.Columns}}">` +
 		`{{range $i, $card := .Cards}}{{with $card}}` +
 		`<article class="refine-card" data-details-url="{{.DetailsURL}}"{{if ge $i $.PerPage}} hidden{{end}}>` +
 		`<div class="refine-card-picture">` +
@@ -126,9 +126,9 @@ var tilesBlockTemplate = template.Must(template.New("tiles").Parse(
 		`{{end}}{{end}}` +
 		`</div>` +
 		`{{if gt .Pages 1}}` +
-		`<div class="sparrow-tiles-pager">` +
+		`<div class="bmr-tiles-pager">` +
 		`<button type="button" class="refine-page-button" data-tiles-step="-1" aria-label="Previous properties" disabled>&lsaquo;</button>` +
-		`<span class="sparrow-tiles-status" aria-live="polite">1 / {{.Pages}}</span>` +
+		`<span class="bmr-tiles-status" aria-live="polite">1 / {{.Pages}}</span>` +
 		`<button type="button" class="refine-page-button" data-tiles-step="1" aria-label="Next properties">&rsaquo;</button>` +
 		`</div>` +
 		`{{end}}` +

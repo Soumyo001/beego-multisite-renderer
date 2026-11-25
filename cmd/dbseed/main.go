@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"sparrow-ssr/models"
-	"sparrow-ssr/services"
+	"beego-multisite-renderer/models"
+	"beego-multisite-renderer/services"
 
 	"github.com/beego/beego/v2/client/orm"
 	"github.com/joho/godotenv"

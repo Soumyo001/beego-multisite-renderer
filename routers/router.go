@@ -1,8 +1,8 @@
 package routers
 
 import (
-	"sparrow-ssr/controllers"
-	"sparrow-ssr/services"
+	"beego-multisite-renderer/controllers"
+	"beego-multisite-renderer/services"
 
 	beego "github.com/beego/beego/v2/server/web"
 )

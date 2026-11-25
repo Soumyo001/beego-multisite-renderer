@@ -41,7 +41,7 @@
                 // Match the publisher navigation's edges before any
                 // content below is painted, so nothing jumps sideways
                 // later. refine.js calls this again on resize.
-                window.sparrowAlignRefine = function () {
+                window.alignRefineLayout = function () {
                     var inner = document.querySelector("main.refine-app > .refine-inner");
                     var nav = document.getElementById("main-navigation");
                     if (!inner || !nav) return;
@@ -60,7 +60,7 @@
                     inner.style.marginRight = right + "px";
                     inner.style.paddingInline = "0";
                 };
-                window.sparrowAlignRefine();
+                window.alignRefineLayout();
             </script>
             {{if .IsCountry}}
             <p class="refine-breadcrumb">

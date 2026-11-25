@@ -1,8 +1,8 @@
 package main
 
 import (
+	"beego-multisite-renderer/models"
 	"fmt"
-	"sparrow-ssr/models"
 	"strings"
 )
 

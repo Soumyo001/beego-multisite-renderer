@@ -4,13 +4,13 @@
 (() => {
     "use strict";
 
-    const blocks = document.querySelectorAll(".sparrow-tiles");
+    const blocks = document.querySelectorAll(".bmr-tiles");
     if (blocks.length === 0) return;
 
     // Same storage key as /refine, /all/:country and the details page,
     // so a favorite set here shows there too.
     const siteKey = blocks[0].dataset.siteKey || location.host;
-    const favoritesKey = `sparrow:favorites:v1:${siteKey}`;
+    const favoritesKey = `bmr:favorites:v1:${siteKey}`;
 
     function readFavorites() {
         try {
@@ -25,7 +25,7 @@
     }
 
     function syncFavorites(favorites) {
-        document.querySelectorAll(".sparrow-tiles button.refine-favorite")
+        document.querySelectorAll(".bmr-tiles button.refine-favorite")
             .forEach(button => {
                 const selected = favorites.has(button.dataset.propertyId);
                 const name = button.dataset.propertyName || "property";
@@ -50,7 +50,7 @@
 
     // Shows page `page` (0-based) of a block's cards.
     function showPage(block, page) {
-        const cards = [...block.querySelectorAll(".sparrow-tiles-grid > .refine-card")];
+        const cards = [...block.querySelectorAll(".bmr-tiles-grid > .refine-card")];
         const perPage = Number(block.dataset.perPage) || cards.length;
         const pages = Math.max(1, Math.ceil(cards.length / perPage));
         const current = Math.min(Math.max(page, 0), pages - 1);
@@ -61,7 +61,7 @@
 
         block.dataset.page = String(current);
 
-        const status = block.querySelector(".sparrow-tiles-status");
+        const status = block.querySelector(".bmr-tiles-status");
         if (status) status.textContent = `${current + 1} / ${pages}`;
 
         block.querySelectorAll("[data-tiles-step]").forEach(button => {
@@ -74,9 +74,9 @@
 
     blocks.forEach(block => {
         // The identical /refine carousel, from static/js/listing_cards.js.
-        if (window.SparrowCards) {
-            window.SparrowCards.initializeSSRCarousels(block);
-            window.SparrowCards.bindCarousel(block);
+        if (window.ListingCards) {
+            window.ListingCards.initializeSSRCarousels(block);
+            window.ListingCards.bindCarousel(block);
         }
 
         block.addEventListener("click", event => {

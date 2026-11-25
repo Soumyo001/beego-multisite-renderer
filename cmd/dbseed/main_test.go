@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"sparrow-ssr/models"
+	"beego-multisite-renderer/models"
 )
 
 func TestSeedData(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"sparrow-ssr/models"
+	"beego-multisite-renderer/models"
 )
 
 func writeMultiSiteJSON(t *testing.T, filename string, value any) {
