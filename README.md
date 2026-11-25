@@ -1,8 +1,8 @@
-# Sparrow SSR
+# Beego Multisite Renderer
 
 **Deployment-metadata-driven, multi-site server-side rendering in Go and Beego.**
 
-Sparrow SSR converts publisher-managed JSON content into HTML using Beego MVC templates. It resolves requests through a startup catalog keyed by **request Host + canonical URL path**, combines shared header/page/footer documents, and caches decoded JSON in memory. Accommodation listings are stored separately in PostgreSQL: country pages render property cards on the server, while filtered search results use a JSON API and client-side rendering.
+Beego Multisite Renderer converts publisher-managed JSON content into HTML using Beego MVC templates. It resolves requests through a startup catalog keyed by **request Host + canonical URL path**, combines shared header/page/footer documents, and caches decoded JSON in memory. Accommodation listings are stored separately in PostgreSQL: country pages render property cards on the server, while filtered search results use a JSON API and client-side rendering.
 
 The JSON content is read from local files under `content/` using the publisher storage-path structure. The application does **not** fetch publisher JSON directly from S3 during a request; external CSS, JavaScript, and permitted image URLs referenced by the content remain external resources.
 
@@ -68,7 +68,7 @@ Routes are derived from the deployment metadata and canonical URLs—not inferre
 ## 3. Project structure
 
 ```text
-sparrow-ssr/
+beego-multisite-renderer/
 ├── main.go                      # Startup, catalog, loader, database, listeners
 ├── go.mod / go.sum
 ├── .env.example                 # Environment-variable template
@@ -118,9 +118,11 @@ sparrow-ssr/
 
 ### 4.1 Install dependencies and configure the environment
 
-From the project root:
+Clone the repository, then work from the project root:
 
 ```bash
+git clone https://github.com/Soumyo001/beego-multisite-renderer.git
+cd beego-multisite-renderer
 go mod download
 cp .env.example .env
 ```
@@ -128,9 +130,9 @@ cp .env.example .env
 Edit `.env` with your own database connection URL. The standard configuration has these keys (no additional database variable is required):
 
 ```dotenv
-SPARROW_DEPLOYMENTS=conf/deployment.json
+DEPLOYMENTS=conf/deployment.json
 PORT=8080
-SPARROW_RUNMODE=
+RUNMODE=
 DATABASE_URL=
 DATABASE_URL_POOLED=
 ```
@@ -146,7 +148,7 @@ Set **`DATABASE_URL`** to a valid `postgres://` or `postgresql://` connection st
 | Any valid integer from 1 to 65535 | `0.0.0.0:<PORT>` |
 | Invalid or out-of-range value | Startup error |
 
-A `0.0.0.0` listener can be reached through network interfaces permitted by firewall and routing rules. A listening address alone does **not** register a request Host in Sparrow's catalog. `SPARROW_RUNMODE` can be left blank to use the configured Beego default.
+A `0.0.0.0` listener can be reached through network interfaces permitted by firewall and routing rules. A listening address alone does **not** register a request Host in the application's catalog.`RUNMODE` can be left blank to use the configured Beego default.
 
 ### 4.2 Initialize a brand-new PostgreSQL database
 
@@ -202,10 +204,10 @@ With the bundled 15-property dataset, `/all/usa` renders eight property cards in
 
 ### 4.4 Register multiple publishers at startup
 
-Set `SPARROW_DEPLOYMENTS` to a comma-separated list of deployment manifests whose local content files are present:
+Set `DEPLOYMENTS` to a comma-separated list of deployment manifests whose local content files are present:
 
 ```bash
-SPARROW_DEPLOYMENTS='conf/deployment.json,conf/second-deployment.json' go run .
+DEPLOYMENTS='conf/deployment.json,conf/second-deployment.json' go run .
 ```
 
 `conf/second-deployment.json` is a **placeholder**, not a file bundled with this repository. Each manifest must use its own valid published hostname and canonical routes. Tests use synthetic multi-publisher manifests to verify routing isolation.
