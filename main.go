@@ -40,23 +40,6 @@ func main() {
 		log.Fatalf("initialize site catalog: %v", err)
 	}
 
-	// Optional explicit preview hostname for local publisher testing.
-	previewHost := strings.TrimSpace(
-		os.Getenv("SPARROW_PREVIEW_HOST"),
-	)
-	previewSource := strings.TrimSpace(
-		os.Getenv("SPARROW_PREVIEW_SOURCE_HOST"),
-	)
-
-	if previewHost != "" || previewSource != "" {
-		if err := catalog.RegisterPreviewAlias(previewSource, previewHost); err != nil {
-			log.Fatalf(
-				"register preview hostname: %v",
-				err,
-			)
-		}
-	}
-
 	// Initialize the frontend content loader.
 	loader, err := services.NewContentLoader(contentRoot)
 	if err != nil {

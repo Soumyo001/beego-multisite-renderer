@@ -13,7 +13,7 @@ The JSON content is read from local files under `content/` using the publisher s
 | Runtime | Go 1.25 (`go.mod` specifies `go 1.25.0`) |
 | Web framework | Beego v2.1.0, MVC controllers and Go HTML templates |
 | Publisher routing | Startup `Catalog` indexed by normalized Host + canonical path |
-| Multiple publishers | `NewMultiCatalog`; explicit startup preview aliases supported |
+| Multiple publishers | `NewMultiCatalog`, one deployment manifest per publisher |
 | JSON loading | Concurrent reads on cache misses; typed decoded-content caches; single-flight suppression |
 | Property data | PostgreSQL (Neon-compatible) via Beego ORM and pgx v5 |
 | SQL tables | `locations`, `properties`, `property_availability` |
@@ -82,7 +82,6 @@ sparrow-ssr/
 ├── services/
 │   ├── catalog.go
 │   ├── multi_catalog.go
-│   ├── catalog_preview.go
 │   ├── content_loader.go
 │   ├── file_cache.go
 │   ├── property_database.go
@@ -210,8 +209,6 @@ SPARROW_DEPLOYMENTS='conf/deployment.json,conf/second-deployment.json' go run .
 ```
 
 `conf/second-deployment.json` is a **placeholder**, not a file bundled with this repository. Each manifest must use its own valid published hostname and canonical routes. Tests use synthetic multi-publisher manifests to verify routing isolation.
-
-Optional `SPARROW_PREVIEW_SOURCE_HOST` and `SPARROW_PREVIEW_HOST` variables can register **one explicit preview hostname** during startup. They are not a wildcard or a dynamic registration service.
 
 ## 5. Concurrent content loading and caching
 
