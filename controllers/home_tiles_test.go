@@ -177,3 +177,85 @@ func TestBuildTilesReplacementsEmptyCases(t *testing.T) {
 		t.Errorf("failed queries should give 3 empty blocks, got %v", got)
 	}
 }
+
+// A block as scripts/tilemarkers marks it.
+const markedBody = `<div class="pres__tiles-container" id="id2lqh">` +
+	`<!--{{if index .Tiles "id2lqh"}}--><!--{{index .Tiles "id2lqh"}}--><!--{{else}}-->` +
+	`<p>dummy tile</p><!--{{end}}--></div><p id="x">keep</p>`
+
+// What the marked body shows without our cards: the original page.
+const defaultBody = `<div class="pres__tiles-container" id="id2lqh"><p>dummy tile</p></div><p id="x">keep</p>`
+
+func TestBuildTileSlots(t *testing.T) {
+	tiles := buildTileSlots("site", json.RawMessage(tilesJSON), &fakeTilesSearcher{})
+	if len(tiles) != 3 || strings.Count(tiles["iqskfb"], `<article class="refine-card"`) != 12 {
+		t.Fatalf("unexpected tiles: %d", len(tiles))
+	}
+
+	// No tiles_component, no searcher or bad JSON: nothing bound.
+	for name, tc := range map[string]struct {
+		raw    string
+		search services.PropertyTilesSearcher
+	}{
+		"missing":   {"", &fakeTilesSearcher{}},
+		"null":      {"null", &fakeTilesSearcher{}},
+		"no search": {tilesJSON, nil},
+		"bad json":  {`{"x":1}`, &fakeTilesSearcher{}},
+	} {
+		if tiles := buildTileSlots("site", json.RawMessage(tc.raw), tc.search); len(tiles) != 0 {
+			t.Errorf("%s: %d tiles", name, len(tiles))
+		}
+	}
+}
+
+func TestRenderMarkedBody(t *testing.T) {
+	tiles := buildTileSlots("site", json.RawMessage(tilesJSON), &fakeTilesSearcher{})
+	got := renderMarkedBody("t/a.json", markedBody, tiles)
+	if strings.Contains(got, "dummy tile") || strings.Contains(got, "<!--{{") ||
+		!strings.HasPrefix(got, `<div class="pres__tiles-container" id="id2lqh"><div class="bmr-tiles"`) ||
+		!strings.HasSuffix(got, `</div></div><p id="x">keep</p>`) ||
+		strings.Count(got, `<article class="refine-card"`) != 12 {
+		t.Fatalf("body:\n%.500s", got)
+	}
+
+	// Missing (or empty) ids: the publisher's original tiles, no markers left.
+	for name, tiles := range map[string]map[string]string{
+		"nil":   nil,
+		"other": {"iqskfb": "<p>DHAKA</p>"},
+		"empty": {"id2lqh": ""},
+	} {
+		if got := renderMarkedBody("t/"+name, markedBody, tiles); got != defaultBody {
+			t.Errorf("%s: %q", name, got)
+		}
+	}
+
+	// An unmarked body is returned unchanged.
+	if got := renderMarkedBody("t/plain.json", defaultBody, tiles); got != defaultBody {
+		t.Errorf("unmarked body changed: %q", got)
+	}
+
+	// The goquery path still works on a marked body: the markers are
+	// inside the block, so they are replaced with it.
+	old, ok := pageBodyWithTiles("site", markedBody, json.RawMessage(tilesJSON), &fakeTilesSearcher{})
+	if !ok || strings.Contains(old, "<!--{{") || strings.Contains(old, "dummy tile") {
+		t.Errorf("goquery path on a marked body:\n%.300s", old)
+	}
+}
+
+func TestPageBodyTemplateCache(t *testing.T) {
+	first := pageBodyTemplate("t/cache.json", markedBody)
+	if again := pageBodyTemplate("t/cache.json", markedBody); again != first {
+		t.Error("the same body was parsed twice")
+	}
+
+	// New content under the same key (a reloaded page) is parsed again.
+	changed := strings.Replace(markedBody, "dummy tile", "new dummy", 1)
+	if entry := pageBodyTemplate("t/cache.json", changed); entry == first || entry.source != changed {
+		t.Error("changed body was not parsed again")
+	}
+
+	// Broken markers fall back to the body as is.
+	if entry := pageBodyTemplate("t/broken.json", `<div><!--{{if .Tiles}}--></div>`); entry.tmpl != nil {
+		t.Error("broken markers were accepted")
+	}
+}

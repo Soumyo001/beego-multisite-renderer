@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	texttemplate "text/template"
 
 	"beego-multisite-renderer/services"
 )
@@ -274,6 +275,107 @@ func pageBodyWithTiles(
 	}
 
 	return out, true
+}
+
+// buildTileSlots runs buildTilesReplacements and returns its result keyed
+// by tiles_block_id, ready to bind to the marked page body. Blocks without
+// an entry (or no tiles_component at all) keep the publisher's tiles.
+func buildTileSlots(
+	siteDirectory string,
+	raw json.RawMessage,
+	search services.PropertyTilesSearcher,
+) map[string]string {
+	slots := make(map[string]string)
+	if len(bytes.TrimSpace(raw)) == 0 || string(bytes.TrimSpace(raw)) == "null" {
+		return slots
+	}
+
+	if search == nil {
+		logTilesOnce("tiles: no property search configured; keeping the publisher blocks")
+		return slots
+	}
+
+	replacements, err := buildTilesReplacements(siteDirectory, raw, search)
+	if err != nil {
+		log.Printf("tiles: %v; keeping the publisher blocks", err)
+		return slots
+	}
+
+	return replacements
+}
+
+// Delimiters of the tile markers that scripts/tilemarkers writes into the
+// page HTML. They look like HTML comments, so a marked body is still valid
+// HTML and cannot clash with the publisher's markup or scripts.
+const (
+	tilesLeftDelim  = "<!--{{"
+	tilesRightDelim = "}}-->"
+)
+
+// bodyTemplate is one page body, parsed once.
+type bodyTemplate struct {
+	source string                 // the body it was parsed from
+	tmpl   *texttemplate.Template // nil: no markers, serve source as is
+}
+
+// bodyTemplates caches parsed page bodies by page JSON path.
+var bodyTemplates sync.Map
+
+// pageBodyTemplate returns the parsed body for key, parsing it only when it
+// is new or its text changed. The loader returns the same string each
+// time, so the comparison with the cached source is a pointer check.
+func pageBodyTemplate(key, body string) *bodyTemplate {
+	if cached, ok := bodyTemplates.Load(key); ok {
+		if entry := cached.(*bodyTemplate); entry.source == body {
+			return entry
+		}
+	}
+
+	entry := &bodyTemplate{source: body}
+	if strings.Contains(body, tilesLeftDelim) {
+		tmpl, err := texttemplate.New(key).
+			Delims(tilesLeftDelim, tilesRightDelim).
+			Parse(body)
+		if err != nil {
+			log.Printf("tiles: %s: tile markers cannot be parsed; showing the publisher blocks: %v", key, err)
+		} else {
+			entry.tmpl = tmpl
+		}
+	}
+
+	bodyTemplates.Store(key, entry)
+	return entry
+}
+
+// renderMarkedBody executes the marked page body with the tile HTML bound
+// by block id. A block whose id is missing or empty in tiles shows the
+// publisher's original tiles. An unmarked body is returned as it is.
+func renderMarkedBody(pageKey, body string, tiles map[string]string) string {
+	entry := pageBodyTemplate(pageKey, body)
+	if entry.tmpl == nil {
+		if len(tiles) > 0 {
+			logTilesOnce(fmt.Sprintf(
+				"tiles: %s has no tile markers; run: go run ./scripts/tilemarkers -write <page.json>",
+				pageKey,
+			))
+		}
+		return body
+	}
+
+	size := len(body)
+	for _, html := range tiles {
+		size += len(html)
+	}
+
+	var out strings.Builder
+	out.Grow(size)
+	data := struct{ Tiles map[string]string }{Tiles: tiles}
+	if err := entry.tmpl.Execute(&out, data); err != nil {
+		// The marked body itself shows the publisher's tiles.
+		log.Printf("tiles: %s: render page body: %v", pageKey, err)
+		return body
+	}
+	return out.String()
 }
 
 // A block id missing from the page would otherwise be logged on every

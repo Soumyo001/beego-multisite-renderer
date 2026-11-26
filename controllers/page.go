@@ -122,15 +122,30 @@ func (c *PageController) Get() {
 
 	// Fill the property tile blocks listed in tiles_component; the
 	// publisher body is used unchanged when there are none.
-	body, hasTiles := pageBodyWithTiles(
+	// body, hasTiles := pageBodyWithTiles(
+	// 	location.ContentDirectory,
+	// 	content.Page.Body.Content,
+	// 	content.Page.TilesComponent,
+	// 	tilesSearch,
+	// )
+
+	// c.Data["HasTiles"] = hasTiles
+
+	// c.Data["BodyHTML"] = template.HTML(body)
+
+	replacements := buildTileSlots(
 		location.ContentDirectory,
-		content.Page.Body.Content,
 		content.Page.TilesComponent,
 		tilesSearch,
 	)
 
-	c.Data["HasTiles"] = hasTiles
+	body := renderMarkedBody(
+		location.PageJSON,
+		content.Page.Body.Content,
+		replacements,
+	)
 
+	c.Data["HasTiles"] = len(replacements) > 0
 	c.Data["BodyHTML"] = template.HTML(body)
 
 	c.Data["FooterHTML"] = template.HTML(

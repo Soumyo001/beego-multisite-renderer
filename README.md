@@ -21,6 +21,7 @@ The JSON content is read from local files under `content/` using the publisher s
 | Property isolation | Stable `site_key`; scoped unique property identifiers and slugs |
 | Country listings | `/all/:country`: server-rendered cards, eight per page |
 | Filtered results | `/refine`: JavaScript rendering from `/api/properties`, eight per page |
+| Home page tiles | `tiles_component` blocks filled from PostgreSQL through template markers written once into the page JSON by `scripts/tilemarkers` |
 | Interactions | Homepage search, date/guest selection, filters, sorting, pagination, loading skeletons, keyboard submission |
 | Diagnostics | Go tests, race detector, benchmarks, `pprof`, read-only opt-in database integration tests |
 
@@ -80,6 +81,8 @@ beego-multisite-renderer/
 ├── cmd/
 │   ├── dbsetup/                 # Fresh database schema setup
 │   └── dbseed/                  # Initial property/availability records
+├── scripts/
+│   └── tilemarkers/             # One-off: adds tile markers to a page JSON (not part of the server)
 ├── models/                     # Publisher JSON, rendering and ORM models
 ├── services/
 │   ├── catalog.go
@@ -92,11 +95,11 @@ beego-multisite-renderer/
 │   ├── property_filters.go
 │   ├── property_details.go
 │   ├── property_tiles.go       # tiles_component database query
-│   ├── tiles_html.go           # goquery: replace tile blocks in page HTML
+│   ├── tiles_html.go           # goquery alternative: replace tile blocks per request (kept for comparison)
 │   └── *_test.go
 ├── controllers/
 │   ├── page.go
-│   ├── home_tiles.go           # tiles_component → property cards
+│   ├── home_tiles.go           # tiles_component → property cards; renders the marked page body
 │   ├── country.go
 │   ├── refine.go
 │   ├── property_details.go
@@ -236,6 +239,15 @@ bee run                       # or: go run .
 - `property_availability`: date windows referencing property rows.
 
 It also creates indexes, scoped uniqueness, and the foreign keys from properties to locations and from availability to properties. **There is no SQL `sites` table.** Both commands can be run again safely: existing tables are kept, and `cmd/dbseed` uses `ReadOrCreate`, so existing rows are never overwritten.
+
+**Tile markers (only for new or updated page JSON).** The bundled `home.json` is already marked. After publishing a page whose `tiles_component` blocks should be filled from the database, mark it once:
+
+```bash
+go run ./scripts/tilemarkers content/<path>/page.json          # dry run: lists the blocks it would mark
+go run ./scripts/tilemarkers -write content/<path>/page.json   # writes body.content back to the file
+```
+
+The script only wraps each block's existing inner HTML in `<!--{{if index .Tiles "<block id>"}}-->…<!--{{else}}-->original<!--{{end}}-->` markers. Without data, the page renders exactly as published. Running it again changes nothing.
 
 ### 4.6 Register multiple publishers at startup
 
@@ -397,6 +409,7 @@ This run measured **306,784 ns/op**, **150,711 B/op**, **266 allocs/op**, and **
 - **Deployment lifecycle:** multiple metadata files can be registered at startup, but no dynamic catalog updates, authenticated deployment callbacks, or coordinated invalidation across instances exist.
 - **Cache lifecycle:** in-memory only, unbounded, without automatic TTL/eviction or deployment-driven refresh. Explicit invalidation can leave some already in-flight requests using old content.
 - **Storage scope:** JSON is local; remote S3 retrieval and deployment-system integration have not been implemented.
+- **Tile markers:** a newly published or updated page JSON must be marked with `scripts/tilemarkers` before its tile blocks are filled; until then the publisher's tiles are shown and a one-time log line names the command.
 - **Input and trust boundaries:** lexical relative-path validation is present but is not a full symlink-containment policy. Publisher-supplied HTML is rendered as trusted; do not feed untrusted visitor HTML into those fields.
 - **Asset status:** some local `/static/img/...` URLs returned 404 and certain external image URLs returned 403 during browser testing. Root cause for external 403 has not been established. These are intentionally deferred; CSS/JS CDN links remain unchanged.
 - **Benchmark scope:** loopback HTTP benchmarks are not browser page-load or production traffic measurements. End-to-end network/CDN timings, peak load tests, and latency percentiles have not been measured.
