@@ -40,6 +40,15 @@ func main() {
 		log.Fatalf("initialize site catalog: %v", err)
 	}
 
+	// Local runs: serve this publisher at http://localhost:<port>/.
+	// Other unregistered hosts still get 404.
+	if localHost := strings.TrimSpace(os.Getenv("LOCAL_SITE_HOST")); localHost != "" {
+		if err := catalog.SetLocalSiteHost(localHost); err != nil {
+			log.Fatalf("LOCAL_SITE_HOST: %v", err)
+		}
+		log.Printf("Requests to localhost are served as %s", localHost)
+	}
+
 	// Initialize the frontend content loader.
 	loader, err := services.NewContentLoader(contentRoot)
 	if err != nil {

@@ -30,7 +30,11 @@ func InitPropertyDatabase(databaseURL string) error {
 	switch parsed.Query().Get("sslmode") {
 	case "require", "verify-ca", "verify-full":
 	default:
-		return fmt.Errorf("PostgreSQL connection must require TLS")
+		// A database on this machine (e.g. in Docker) may run without TLS.
+		if !isLoopbackHost(parsed.Hostname()) {
+			return fmt.Errorf("PostgreSQL connection must require TLS " +
+				"(sslmode=require) unless the database runs on this machine")
+		}
 	}
 
 	orm.DefaultTimeLoc = time.UTC

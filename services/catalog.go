@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"path"
@@ -20,6 +21,10 @@ type routeKey struct {
 // Catalog is read-only after initialization.
 type Catalog struct {
 	routes map[routeKey]models.PageLocation
+
+	// localHost is the publisher host served for requests addressed to
+	// this machine (localhost, 127.0.0.1, ::1). Empty: none.
+	localHost string
 }
 
 func NewCatalog(
@@ -243,17 +248,52 @@ func readJSON(
 	return nil
 }
 
+// SetLocalSiteHost makes requests addressed to this machine (localhost,
+// 127.0.0.1 or ::1, any port) resolve as if they were sent to host, so a
+// local run can be opened at http://localhost:8080/. Requests for any
+// other unregistered host still resolve to nothing.
+//
+// Call it only during startup, before requests are served.
+func (c *Catalog) SetLocalSiteHost(host string) error {
+	host = strings.ToLower(strings.TrimSpace(host))
+
+	for key := range c.routes {
+		if key.host == host {
+			c.localHost = host
+			return nil
+		}
+	}
+
+	return fmt.Errorf("publisher host %q has no registered routes", host)
+}
+
 // Resolve is safe for concurrent reads after initialization.
 func (c *Catalog) Resolve(host, requestPath string) (models.PageLocation, bool) {
 	parsed := url.URL{Host: host}
-	hostname := parsed.Hostname()
+	hostname := strings.ToLower(parsed.Hostname())
+
+	if c.localHost != "" && isLoopbackHost(hostname) {
+		hostname = c.localHost
+	}
 
 	location, found := c.routes[routeKey{
-		host: strings.ToLower(hostname),
+		host: hostname,
 		path: normalizePath(requestPath),
 	}]
 
 	return location, found
+}
+
+// isLoopbackHost reports whether host names this machine:
+// "localhost" or a loopback address such as 127.0.0.1 or ::1.
+func isLoopbackHost(host string) bool {
+	host = strings.ToLower(host)
+	if host == "localhost" {
+		return true
+	}
+
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func (c *Catalog) Count() int {
