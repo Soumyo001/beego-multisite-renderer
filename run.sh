@@ -24,4 +24,4 @@ export LOCAL_SITE_HOST
 echo "==> Creating tables";      go run ./cmd/dbsetup
 echo "==> Inserting demo data";  go run ./cmd/dbseed
 echo "==> Starting: open http://localhost:8080/  (Ctrl+C to stop)"
-exec bee run
+exec bee run 
