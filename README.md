@@ -10,7 +10,8 @@ The JSON content is read from local files under `content/` using the publisher s
 
 | Area | Implementation |
 | --- | --- |
-| Runtime | Go 1.25 (`go.mod` specifies `go 1.25.0`) |
+| Runtime | Go 1.26 (`go.mod` specifies `go 1.26.0`) |
+| One-command local run | `run.sh`: `.env` from `.env.example`, PostgreSQL 17 in Docker, schema, demo data, `bee run` |
 | Web framework | Beego v2.1.0, MVC controllers and Go HTML templates |
 | Publisher routing | Startup `Catalog` indexed by normalized Host + canonical path |
 | Multiple publishers | `NewMultiCatalog`, one deployment manifest per publisher |
@@ -52,7 +53,7 @@ The JSON content is read from local files under `content/` using the publisher s
 1. `services.NewCatalog` reads deployment metadata containing `data.published_domain` and `data.uploaded_file_paths`.
 2. It resolves CDN object keys to local files under `content/`, identifies shared `header.json` and `footer.json`, and reads `head.canonical_url` from routable pages.
 3. `services.NewMultiCatalog` merges independent publisher catalogs, rejecting colliding Host + path entries.
-4. `controllers.PageController` resolves the **actual request Host and path**. Unknown hosts or paths return HTTP 404.
+4. `controllers.PageController` resolves the **actual request Host and path**. Unknown hosts or paths return HTTP 404. For local runs, `LOCAL_SITE_HOST` makes requests addressed to this machine (`localhost`, `127.0.0.1`, `::1`) resolve as that publisher host (see section 4.4).
 5. The loader combines shared header, page document, and footer. Publisher HTML and referenced CSS/JS are rendered by `views/page.tpl`.
 
 Routes are derived from the deployment metadata and canonical URLs—not inferred from storage filenames or hardcoded domain mappings. `links.json` is not treated as a page. Publisher HTML is treated as trusted source content and must not be populated from arbitrary visitor input.
@@ -69,9 +70,10 @@ Routes are derived from the deployment metadata and canonical URLs—not inferre
 
 ```text
 beego-multisite-renderer/
+├── run.sh                       # One-command local setup and run
 ├── main.go                      # Startup, catalog, loader, database, listeners
 ├── go.mod / go.sum
-├── .env.example                 # Environment-variable template
+├── .env.example                 # Environment-variable template (copied to .env by run.sh)
 ├── conf/
 │   ├── app.conf
 │   └── deployment.json          # Publisher deployment metadata
@@ -88,20 +90,26 @@ beego-multisite-renderer/
 │   ├── property_db_search.go
 │   ├── property_country.go
 │   ├── property_filters.go
+│   ├── property_details.go
+│   ├── property_tiles.go       # tiles_component database query
+│   ├── tiles_html.go           # goquery: replace tile blocks in page HTML
 │   └── *_test.go
 ├── controllers/
 │   ├── page.go
+│   ├── home_tiles.go           # tiles_component → property cards
 │   ├── country.go
 │   ├── refine.go
+│   ├── property_details.go
 │   ├── property_api.go
 │   └── health.go
 ├── routers/router.go
 ├── views/
 │   ├── page.tpl
-│   └── refine.tpl
+│   ├── refine.tpl
+│   └── property.tpl
 ├── static/
-│   ├── css/                    # refine.css, all.css, search popup CSS
-│   ├── js/                     # refine.js, property_search_popup.js
+│   ├── css/                    # refine.css, home_tiles.css, property_details.css, search popup CSS
+│   ├── js/                     # refine.js, listing_cards.js, home_tiles.js, property_details.js, search popup
 │   └── img/
 ├── content/                    # Local publisher JSON storage hierarchy
 └── tests/                      # HTTP integration tests and benchmarks
@@ -109,54 +117,116 @@ beego-multisite-renderer/
 
 ## 4. Setup and running locally
 
-### Prerequisites
+### 4.1 Quick start: one command
 
-- Go 1.25 or a compatible newer toolchain.
-- Access to a PostgreSQL database with TLS enabled; Neon PostgreSQL is the development database used for this project.
-- Publisher deployment metadata in `conf/deployment.json` and the corresponding local files under `content/`.
-- Node.js is optional for checking JavaScript syntax. Bee CLI is optional if you prefer `bee run` to `go run .`.
+**Requirements**
 
-### 4.1 Install dependencies and configure the environment
+- **Go 1.26 or newer**: <https://go.dev/dl/>
+- **Docker**, running, and usable by your user without `sudo` (the user is in the `docker` group)
+- **Bee CLI v2**: `go install github.com/beego/bee/v2@latest` (make sure `$(go env GOPATH)/bin` is on your `PATH`)
+- Internet access on the first run (Go modules and the `postgres:17` image are downloaded)
 
-Clone the repository, then work from the project root:
+**Run**
 
 ```bash
 git clone https://github.com/Soumyo001/beego-multisite-renderer.git
 cd beego-multisite-renderer
-go mod download
-cp .env.example .env
+./run.sh
 ```
 
-Edit `.env` with your own database connection URL. The standard configuration has these keys (no additional database variable is required):
+Then open **<http://localhost:8080/>**. Press `Ctrl+C` to stop the server.
 
-```dotenv
-DEPLOYMENTS=conf/deployment.json
-PORT=8080
-RUNMODE=
-DATABASE_URL=
-DATABASE_URL_POOLED=
+`run.sh` performs these steps:
+
+| Step | What happens |
+| --- | --- |
+| 1. `.env` | Copies `.env.example` to `.env` if `.env` does not exist yet. An existing `.env` is kept. |
+| 2. Database | If `DATABASE_URL` in `.env` is empty, starts a PostgreSQL 17 container named `bmr-postgres` on `127.0.0.1:55432` with a **randomly generated password**, and writes its connection URL into `.env`. No credentials are stored in the repository. If `DATABASE_URL` points to another database, Docker is not used. |
+| 3. Schema | `go run ./cmd/dbsetup` creates the tables, indexes and foreign keys. |
+| 4. Demo data | `go run ./cmd/dbseed` inserts the demo dataset. |
+| 5. Server | `bee run` builds and starts the application on `127.0.0.1:8080`. |
+
+A first run ends like this:
+
+```text
+==> Created .env from .env.example
+==> Creating PostgreSQL container bmr-postgres (first run downloads the image)
+==> Waiting for PostgreSQL
+==> Creating tables
+... PostgreSQL schema ready: tables, indexes, and foreign keys
+==> Inserting demo data
+... Seed complete. New records: locations=24 properties=72 availability=72
+==> Starting: open http://localhost:8080/  (Ctrl+C to stop)
+... SUCCESS  ▶ 0004 Built Successfully!
 ```
 
-Set **`DATABASE_URL`** to a valid `postgres://` or `postgresql://` connection string with `sslmode=require` (or `verify-ca` / `verify-full`). Do not commit `.env` or include credentials in logs. If `DATABASE_URL` is empty, the running server can use `DATABASE_URL_POOLED`; the database setup utility needs `DATABASE_URL` explicitly.
+**Running it again** is safe: the existing container is started again, existing tables and rows are kept, and the seed reports `properties=0` new records.
+
+**Stopping and removing the database**
+
+```bash
+docker stop bmr-postgres          # stop it; ./run.sh starts it again with the data kept
+docker rm -f -v bmr-postgres      # remove it and its data; the next ./run.sh creates a fresh one
+```
+
+### 4.2 Pages to try
+
+| URL | What it shows |
+| --- | --- |
+| <http://localhost:8080/> | Publisher home page; the Dhaka and Toronto tile blocks are filled from the database (`tiles_component`) |
+| <http://localhost:8080/all/usa> | 48 USA properties, rendered on the server 8 at a time; more load while scrolling |
+| <http://localhost:8080/all/canada>, <http://localhost:8080/all/bangladesh> | 12 properties each (Toronto, Dhaka) |
+| <http://localhost:8080/refine?search=USA&pax=2&order=1> | Search results with filters and sorting (JSON API + browser rendering) |
+| Click any property card | Property details page with "Vacation Rentals Near" |
+| <http://localhost:8080/privacy-policy>, <http://localhost:8080/site-terms>, <http://localhost:8080/blog/untitled-post-wrurmp> | Other publisher pages |
+| <http://localhost:8080/health> | Health check |
+
+The demo dataset (`cmd/dbseed`) contains **24 locations, 72 properties and 72 availability windows**: 15 real US hotels, 33 US demo listings, 12 Toronto and 12 Dhaka demo listings. Demo listings are named "… (Demo)" and their button reads **View Other Hotel**, linking to a real hotel in the same city on Booking.com.
+
+### 4.3 Configuration (`.env`)
+
+`.env` is created from `.env.example` and is ignored by git.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | empty | PostgreSQL connection URL. Empty: `run.sh` starts the Docker database and fills it in. |
+| `DATABASE_URL_POOLED` | empty | Optional pooled URL, used only when `DATABASE_URL` is empty. |
+| `LOCAL_SITE_HOST` | `test-travel-templates.beta.123presto.com` | Publisher served at `http://localhost:8080/` (section 4.4). |
+| `DEPLOYMENTS` | `conf/deployment.json` | Comma-separated deployment manifests (section 4.6). |
+| `PORT` | unset | Listener, see the table below. |
+| `RUNMODE` | `dev` | Beego run mode. |
+| `TEST_NEON` | unset | `1` enables the read-only integration tests against the configured database. |
+
+**Database URL rules:** a remote database must use TLS (`sslmode=require`, `verify-ca` or `verify-full`). A database on this machine (`localhost`, `127.0.0.1`, `::1`, such as the Docker container) may use `sslmode=disable`.
 
 `PORT` controls the listener:
 
 | Configuration | Listening address |
 | --- | --- |
-| `PORT` unset or blank | `127.0.0.1:8080` |
-| `PORT=8080` | `0.0.0.0:8080` |
+| `PORT` unset or blank | `127.0.0.1:8080` (this computer only) |
+| `PORT=8080` | `0.0.0.0:8080` (also reachable from the local network) |
 | Any valid integer from 1 to 65535 | `0.0.0.0:<PORT>` |
 | Invalid or out-of-range value | Startup error |
 
-A `0.0.0.0` listener can be reached through network interfaces permitted by firewall and routing rules. A listening address alone does **not** register a request Host in the application's catalog.`RUNMODE` can be left blank to use the configured Beego default.
+### 4.4 How `localhost` shows the publisher site
 
-### 4.2 Initialize a brand-new PostgreSQL database
+Publisher pages are found by **request Host + path** (section 2), and the browser sends `Host: localhost:8080`, which is not a publisher domain. At startup `main.go` passes `LOCAL_SITE_HOST` to `Catalog.SetLocalSiteHost`, which checks that the host is registered. `Catalog.Resolve` then treats requests addressed to this machine (`localhost`, `127.0.0.1`, `::1`, any port) as requests for that host. Every other unknown host still returns 404, and canonical links keep the real publisher domain.
 
-On **first setup of an empty database**, with the required `DATABASE_URL` configured, run:
+Without `LOCAL_SITE_HOST`, send the publisher Host explicitly:
 
 ```bash
-go run ./cmd/dbsetup
-go run ./cmd/dbseed
+curl -i -H 'Host: test-travel-templates.beta.123presto.com' http://127.0.0.1:8080/
+```
+
+### 4.5 Using your own PostgreSQL, or running the steps by hand
+
+To use an existing database, put its URL into `DATABASE_URL` in `.env` and run `./run.sh`; Docker is skipped. Or run the steps yourself:
+
+```bash
+cp .env.example .env          # then set DATABASE_URL
+go run ./cmd/dbsetup          # tables, indexes, foreign keys
+go run ./cmd/dbseed           # demo data
+bee run                       # or: go run .
 ```
 
 `cmd/dbsetup` uses Beego ORM synchronization and creates the three application tables:
@@ -165,52 +235,28 @@ go run ./cmd/dbseed
 - `properties`: publisher-scoped property records identified by `site_key`, `property_id`, and `slug`.
 - `property_availability`: date windows referencing property rows.
 
-It also establishes indexes, scoped uniqueness, and foreign-key relationships from properties to locations and availability to properties. **There is no SQL `sites` table.**
+It also creates indexes, scoped uniqueness, and the foreign keys from properties to locations and from availability to properties. **There is no SQL `sites` table.** Both commands can be run again safely: existing tables are kept, and `cmd/dbseed` uses `ReadOrCreate`, so existing rows are never overwritten.
 
-`cmd/dbseed` inserts the bundled demonstration dataset for the registered sample publisher: **8 locations, 15 properties, and 15 availability records** on an empty database. It uses `DATABASE_URL` in the standard environment configuration; its code also recognizes an optional direct-connection override, but that override is **not required** in `.env.example`. Seeding uses `ReadOrCreate`, so existing matching records are preserved rather than overwritten.
+### 4.6 Register multiple publishers at startup
 
-**Run schema setup and seeding only against a database you intend to initialize.** The commands can write schema/data; neither is needed for normal application startup once the database has been prepared. Schema privileges and a database connection are required.
-
-### 4.3 Start the application
+Set `DEPLOYMENTS` to a comma-separated list of deployment manifests whose content files are present under `content/`:
 
 ```bash
-go run .
+DEPLOYMENTS='conf/deployment.json,conf/second-deployment.json' bee run
 ```
 
-Or, if Bee CLI is installed:
+`conf/second-deployment.json` is a **placeholder**, not a file bundled with this repository. Each manifest must use its own published hostname and canonical routes. `LOCAL_SITE_HOST` maps `localhost` to one publisher; reach the others by their own hostname (for example with `curl -H 'Host: …'`). Tests use synthetic multi-publisher manifests to verify routing isolation.
 
-```bash
-bee run
-```
+### 4.7 Troubleshooting
 
-Startup loads the publisher catalog and decoded-content loader, establishes the PostgreSQL connection, registers the routes, then begins serving HTTP. An unavailable or unconfigured database causes startup to fail.
-
-Because publisher routes require a registered hostname, the following curl example explicitly supplies the expected Host header:
-
-```bash
-curl -i -H 'Host: test-travel-templates.beta.123presto.com' \
-  http://127.0.0.1:8080/
-
-curl -i -H 'Host: test-travel-templates.beta.123presto.com' \
-  http://127.0.0.1:8080/all/usa
-
-curl -i -H 'Host: test-travel-templates.beta.123presto.com' \
-  'http://127.0.0.1:8080/api/properties?search=USA&pax=2&order=1'
-
-curl -i http://127.0.0.1:8080/health
-```
-
-With the bundled 15-property dataset, `/all/usa` renders eight property cards in the initial HTML and `/all/usa?page=2` renders seven. `/all/canada` is a valid empty country page with this seed data. `/refine?search=USA&pax=2&order=1` uses the property API and client-side rendering. Unknown publisher hosts return 404 for content and property routes.
-
-### 4.4 Register multiple publishers at startup
-
-Set `DEPLOYMENTS` to a comma-separated list of deployment manifests whose local content files are present:
-
-```bash
-DEPLOYMENTS='conf/deployment.json,conf/second-deployment.json' go run .
-```
-
-`conf/second-deployment.json` is a **placeholder**, not a file bundled with this repository. Each manifest must use its own valid published hostname and canonical routes. Tests use synthetic multi-publisher manifests to verify routing isolation.
+| Message | Fix |
+| --- | --- |
+| `Go is not installed` | Install Go 1.26+ from <https://go.dev/dl/>. |
+| `Docker is not running, or this user cannot use it` | Start Docker; or run `sudo usermod -aG docker $USER`, then log out and in again. |
+| `bee: command not found` | `go install github.com/beego/bee/v2@latest` and add `$(go env GOPATH)/bin` to `PATH`. |
+| Port `55432` or `8080` already in use | Stop the program using it (`ss -ltnp \| grep -E ':55432\|:8080'`). |
+| `Page not found` at `localhost:8080` | `.env` has no `LOCAL_SITE_HOST`; copy the line from `.env.example`. |
+| `PostgreSQL did not start` | `docker logs bmr-postgres` |
 
 ## 5. Concurrent content loading and caching
 
